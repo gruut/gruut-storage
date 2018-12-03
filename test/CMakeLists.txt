@@ -10,7 +10,8 @@ link_directories(/usr/lib/x86_64-linux-gnu)
 include_directories(/usr/local/include/nlohmann)
 include_directories(../lib)
 
-add_executable(workspace_temp main.cpp ../lib/storage_lib.hpp)
+add_executable(workspace_temp main.cpp ../lib/storage_lib.hpp ../lib/merkle_lib.hpp ../lib/sha256/sha256.cpp)
+
 
 
 

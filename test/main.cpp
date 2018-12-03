@@ -3,10 +3,28 @@
 #include <mysql.h>
 #include <iostream>
 #include <json.hpp>
-#include "../lib/storage_lib.hpp"
+#include <storage_lib.hpp>
+#include <merkle_lib.hpp>
+#include <sha256/sha256.h>
 
 using namespace std;
 
+json js[7] = {json::parse("{\"user_id\":\"mizno\", \"var_name\":\"balance\",\"value\":50000,\"type\":\"gru\"}"),
+              json::parse("{\"user_id\":\"kjh\", \"var_name\":\"balance\",\"value\":20000,\"type\":\"gru\"}"),
+              json::parse("{\"user_id\":\"mang\", \"var_name\":\"balance\",\"value\":30000,\"type\":\"gru\"}"),
+              json::parse("{\"user_id\":\"skmoon\", \"var_name\":\"balance\",\"value\":40000,\"type\":\"gru\"}"),
+              json::parse("{\"user_id\":\"sheperd\", \"var_name\":\"balance\",\"value\":40000,\"type\":\"gru\"}"),
+              json::parse("{\"user_id\":\"sunnyq\", \"var_name\":\"balance\",\"value\":50000,\"type\":\"gru\"}"),
+              json::parse("{\"user_id\":\"lhs\", \"var_name\":\"balance\",\"value\":30000,\"type\":\"gru\"}"), };
+
+int main() {
+    string input = "grape";
+    string output1 = sha256(input);
+
+    cout << "sha256('"<< input << "'):" << output1 << endl;
+    return 0;
+}
+/*
 int main() {
 
     gruut::StorageLib s_lib;
@@ -63,3 +81,4 @@ int main() {
 
 
 }
+*/
