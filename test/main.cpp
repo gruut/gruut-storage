@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <stack>
 #include <merkle_lib.hpp>
 using namespace std;
 
@@ -28,16 +29,21 @@ uint path[6] = {
 int main() {
     gruut::MerkleTree tree = gruut::MerkleTree();
 
-    for(int i = 0; i < _DATA_LEN; ++i) {
-        tree.addNode(path[i], data[i]);
-    }
+//    for(int i = 0; i < _DATA_LEN; ++i) {
+//        tree.addNode(path[i], data[i]);
+//        cout << tree.getRootValue() << '\n';
+//    }
 
-//    tree.addNode(path[0], data[0]);
+    tree.addNode(path[0], data[0]);
 //    tree.addNode(path[1], data[1]);
 //    tree.addNode(path[2], data[2]);
 //    tree.addNode(path[3], data[3]);
 
     tree.printTreePostOrder();
+    tree.removeNode(path[0]);
+
+    tree.printTreePostOrder();
+
 
     return 0;
 }
