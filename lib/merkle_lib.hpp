@@ -14,8 +14,8 @@
 using namespace std;
 
 // TODO: define 값 변경
-#define _TREE_DEPTH 3
-#define _SHA256_SPLIT 2
+#define _TREE_DEPTH 16
+#define _SHA256_SPLIT 8
 typedef unsigned int uint;
 typedef unsigned long long int ullint;
 
@@ -51,10 +51,11 @@ namespace gruut {
         }
         uint makePath(test_data data) {
             string key = to_string(data.uid) + data.user_name + data.var_type;
-            string path = sha256(key);
+            string value = sha256(key).substr(0, _SHA256_SPLIT);
+            uint path = (uint) strtoul(value.c_str(), 0, 16);
+            uint mask = (1 << _TREE_DEPTH) - 1;
 
-            path = path.substr(0, _SHA256_SPLIT);
-            return (uint) strtoul(path.c_str(), 0, 16);
+            return path & mask;
         }
 
     public:
