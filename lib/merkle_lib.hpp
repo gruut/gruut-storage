@@ -405,6 +405,7 @@ namespace gruut {
             int dir_pos = _TREE_DEPTH - 1;
             while(true) {
                 if (!node->isDummy()) {
+                    printf("not dummy\n");
                     ret = node;
                     break;
                 }
