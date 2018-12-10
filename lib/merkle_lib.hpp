@@ -14,8 +14,8 @@
 using namespace std;
 
 // TODO: define 값 변경
-#define _TREE_DEPTH 16
-#define _SHA256_SPLIT 8
+#define _TREE_DEPTH 3
+#define _SHA256_SPLIT 2
 typedef unsigned int uint;
 typedef unsigned long long int ullint;
 
@@ -93,6 +93,23 @@ namespace gruut {
                 m_value = sha256(l_value + r_value);
             }
         }
+        // 노드 삭제 시 부모 노드로 이동하여 변경되는 path 와 suffix, suffix_len 의 내용을 반영
+        // 1. path 의 LSB 를 저장하고 right shift 수행
+        // 2. suffix 의 LSB 에서 suffix_len 번째 비트에 저장된 비트를 넣고 suffix_len 1 증가
+        void moveToParent()
+        {
+            int bit;
+            // 예외 처리
+            if (m_suffix_len == _TREE_DEPTH) {
+                printf("MerkleNode::moveToParent has some error");
+                return;
+            }
+
+            bit = (m_debug_path & 1) != 0 ? 1 : 0;
+            m_debug_path = m_debug_path >> 1;
+            m_suffix = m_suffix | (bit << m_suffix_len);
+            m_suffix_len++;
+        }
 
         bool isDummy()  { return (m_debug_uid == -1); }
         bool isLeaf()   { return ((m_debug_uid != -1) && (m_suffix_len == 0)); }
@@ -113,13 +130,26 @@ namespace gruut {
             m_debug_uid = data.uid;
             m_value = makeValue(data);
         }
+        void overwriteNode(MerkleNode *node)
+        {
+            m_left = nullptr;
+            m_right = nullptr;
+            m_value = node->getValue();
+            m_debug_uid = node->getDebugUid();
+            m_suffix = node->getSuffix();
+            m_debug_path = node->getDebugPath();
+            m_suffix_len = node->getSuffixLen();
+            moveToParent();
+        }
 
         /* getter */
         MerkleNode* getLeft()   { return m_left; }
         MerkleNode* getRight()  { return m_right; }
+        uint getSuffix()        { return m_suffix; }
         string getValue()       { return m_value; }
         uint getDebugPath()     { return m_debug_path; }
         int getDebugUid()       { return m_debug_uid; }
+        int getSuffixLen()      { return m_suffix_len; }
         //MerkleNode* getNext() { return m_next; }
 
     };
@@ -162,7 +192,6 @@ namespace gruut {
             return ret;
         }
         void visit(MerkleNode *node) {
-            //printf("2");
             string str_dir = !_debug_dir ? "Left" : "Right";
             if (!node->isDummy()) {
                 printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
@@ -172,7 +201,6 @@ namespace gruut {
         }
         void postOrder(MerkleNode *node) {
             _debug_depth++;
-            //printf("1");
             printf("%s[depth %3d]\n", _debug_str_depth.substr(0, _debug_depth*2).c_str(), _debug_depth);
             if (node->getLeft() != nullptr) { _debug_dir = false; postOrder(node->getLeft()); }
             if (node->getRight() != nullptr) { _debug_dir = true; postOrder(node->getRight()); }
@@ -305,43 +333,45 @@ namespace gruut {
                 node->reHash();
             }
         }
+
         void removeNode(uint path)
         {
             MerkleNode *node;
-            MerkleNode *prev_node;
+            MerkleNode *parent, *left, *right;
 
-            prev_node = getMerkleNode(path);
-            // step1. 삭제
-            do {
-                node = prev_node;           // node: 삭제할 노드
-                prev_node = stk.top();      // prev_node: 삭제할 노드의 부모
-                stk.pop();
-
-                // 삭제한 노드의 sibling 노드가 존재한다면 (nullptr 이 아니라면) 삭제 루틴 중지.
-                if (prev_node->getLeft() == node) {
-                    prev_node->setLeft(nullptr);
-                    delete node;
-                    if (prev_node->getRight() != nullptr)
-                        break;
-                }
-                else if (prev_node->getRight() == node) {
-                    prev_node->setRight(nullptr);
-                    delete node;
-                    if (prev_node->getLeft() != nullptr)
-                        break;
-                }
-            } while(!stk.empty());
-
-            // step2. re-hash
-            while(!stk.empty()) {
-                node = stk.top();
-                if (node == nullptr) break;  // 예외처리) stk 이 비어있을 경우
-                stk.pop();
-
-                node->reHash();
+            node = getMerkleNode(path);
+            parent = stk.top(); stk.pop();
+            if (parent->getLeft() == node) {
+                parent->setLeft(nullptr);
+                delete node;
+            }
+            else if (parent->getRight() == node) {
+                parent->setRight(nullptr);
+                delete node;
             }
 
-            m_size--;
+            do {
+                if (parent == root) {
+                    parent->reHash();
+                    break;
+                }
+
+                left = parent->getLeft();
+                right = parent->getRight();
+
+                if (left != nullptr && right != nullptr)    break;          // left, right 가 모두 존재하면 머클 루트까지 rehash 시작
+                else if (left == nullptr)   parent->overwriteNode(right);   // right 만 존재하면 parent 를 right 로 덮어씌움
+                else if (right == nullptr)  parent->overwriteNode(left);    // left 만 존재하면 parent 를 left 로 덮어씌움
+
+                if (stk.empty())    break;
+                else                parent = stk.top(); stk.pop();
+            } while(true);
+
+            while (!stk.empty()) {
+                parent->reHash();
+
+                parent = stk.top(); stk.pop();
+            }
         }
 
         MerkleNode* getMerkleNode(uint _path)
@@ -355,9 +385,16 @@ namespace gruut {
             // _path 따라 내려가면서 dummy 가 아닌 노드 (실제 정보를 가진 노드)를 발견하면 반환
             MerkleNode *node = root;
             int dir_pos = _TREE_DEPTH - 1;
-            while(dir_pos >= 0) {
+            while(true) {
+                //printf("dir pos: %d\t\t", dir_pos);
+                //printf("getMerkleNode stack size: %ld\n", stk.size());
                 if (!node->isDummy()) {
+                    //printf("not dummy\n");
                     ret = node;
+                    break;
+                }
+
+                if (dir_pos < 0) {
                     break;
                 }
                 stk.push(node);
@@ -398,6 +435,7 @@ namespace gruut {
         // getter
         ullint getSize()   { return m_size; }
         string getRootValue()   { return root->getValue(); }
+        MerkleNode* getRoot()   { return root; }
 
     };
 }
