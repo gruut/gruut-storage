@@ -94,7 +94,7 @@ namespace gruut {
             }
         }
         // 노드 삭제 시 부모 노드로 이동하여 변경되는 path 와 suffix, suffix_len 의 내용을 반영
-        // 1. path 의 LSB 를 저장하고 right shift 수행
+        // 1. path 의 LSB 에서 suffix_len 번째 비트를 저장
         // 2. suffix 의 LSB 에서 suffix_len 번째 비트에 저장된 비트를 넣고 suffix_len 1 증가
         void moveToParent()
         {
@@ -105,8 +105,7 @@ namespace gruut {
                 return;
             }
 
-            bit = (m_debug_path & 1) != 0 ? 1 : 0;
-            m_debug_path = m_debug_path >> 1;
+            bit = (m_debug_path & (1 << m_suffix_len)) != 0 ? 1 : 0;
             m_suffix = m_suffix | (bit << m_suffix_len);
             m_suffix_len++;
         }
@@ -139,7 +138,7 @@ namespace gruut {
             m_suffix = node->getSuffix();
             m_debug_path = node->getDebugPath();
             m_suffix_len = node->getSuffixLen();
-            moveToParent();
+            moveToParent(); // suffix, suffix_len, path 값 수정
         }
 
         /* getter */
@@ -170,10 +169,13 @@ namespace gruut {
         string _debug_str_depth;
         string _debug_str_dir;
 
+        // LSB 에서 pos 번째 bit 를 반환
+        // 반환 값이 false 면 left 방향이고 true 면 right 방향임
         bool getDirectionOf(uint path, int pos)
         {
             return (path & (1 << pos)) != 0;
         }
+        // uint 값을 받아서 눈으로 볼 수 있게 binary string 으로 변환하는 함수
         char* intToBin(uint num) {
             char *ret = new char(_SHA256_SPLIT + 2);
 
@@ -199,6 +201,7 @@ namespace gruut {
             }
             _debug_depth--;
         }
+        // tree post-order 순회 재귀함수
         void postOrder(MerkleNode *node) {
             _debug_depth++;
             printf("%s[depth %3d]\n", _debug_str_depth.substr(0, _debug_depth*2).c_str(), _debug_depth);
@@ -231,17 +234,20 @@ namespace gruut {
             int dir_pos = _TREE_DEPTH - 1;
 
             while(!stk.empty()) stk.pop();      // 스택 clear
-            int depth = 0;
+
+            // 머클 루트에서 시작하여 삽입하려는 노드의 경로 (new_path) 를 따라 한칸씩 내려감.
             while(true) {
+                // 내려간 노드가 dummy 가 아닌 경우 (데이터를 가진 노드일 경우) 충돌 발샐
                 if (!node->isDummy()) {
                     collision = true;
                     break;
                 }
 
-                stk.push(node); // 노드 삽입 후 노드에서 머클 루트까지 re-hashing 용도
+                // 노드 삽입 후 해당 노드에서 머클 루트까지 re-hashing 용도
+                stk.push(node);
 
-                dir = getDirectionOf(new_path, dir_pos);
-                depth++;
+                // 내려가려는 위치의 노드가 nullptr 인 경우, 해당 위치에 노드를 삽입하고 탈출
+                dir = getDirectionOf(new_path, dir_pos);        // false: left, true: right
                 if (!dir && (node->getLeft() == nullptr)) {
                     node->setLeft(new_node);
                     node->setSuffix(new_path, dir_pos);
@@ -252,6 +258,7 @@ namespace gruut {
                     node->setSuffix(new_path, dir_pos);
                     break;
                 }
+                // path 로 진행하는 방향에 노드가 존재하면 계속해서 내려감
                 else {
                     if (!dir) {
                         prev_node = node;
@@ -265,7 +272,10 @@ namespace gruut {
 
                 dir_pos--;
             }
-            // 기존 노드와 충돌 났을 때, 기존 노드와 새 노드 모두 삽입 필요
+            // case: 기존 노드와 충돌 났을 경우 -> 기존 노드와 새 노드 모두 적절한 위치에 삽입 필요
+            // prev_node : 부모 노드, dummy : 충돌난 곳에 삽입할 더미 노드
+            // old_node : 충돌난 곳에 있던 기존 노드, new_node : 삽입하려는 새 노드
+            // old_path : 기존 노드의 경로, new_path : 새 노드의 경로
             if (collision) {
                 MerkleNode *old_node;
                 uint old_path;
@@ -284,11 +294,14 @@ namespace gruut {
                 prev_node = dummy;
 
                 // 경로가 같은 횟수만큼 경로를 따라서 dummy 노드 생성 및 연결
-                for(int i = dir_pos; i >= 0; --i) {
-                    if (getDirectionOf(new_path, i) == getDirectionOf(old_path, i)) {
+                while(true) {
+                    if (getDirectionOf(new_path, dir_pos) != getDirectionOf(old_path, dir_pos)) {
+                        break;
+                    }
+                    else {
                         dummy = new MerkleNode();
                         stk.push(dummy);
-                        if (!getDirectionOf(new_path, i)) {
+                        if (!getDirectionOf(new_path, dir_pos)) {
                             prev_node->setLeft(dummy);
                         }
                         else {
@@ -296,24 +309,24 @@ namespace gruut {
                         }
                         prev_node = dummy;
                     }
-                    else {
-                        if (!getDirectionOf(new_path, i)) {
-                            prev_node->setLeft(new_node);
-                            prev_node->setRight(old_node);
-                        }
-                        else {
-                            prev_node->setRight(new_node);
-                            prev_node->setLeft(old_node);
-                        }
-                        break;
-                    }
-                }
-            }
 
+                    dir_pos--;
+                }
+                // 경로가 다른 위치에서 기존 노드, 새 노드 각각 삽입
+                if (!getDirectionOf(new_path, dir_pos)) {
+                    prev_node->setLeft(new_node);
+                    prev_node->setRight(old_node);
+                }
+                else {
+                    prev_node->setRight(new_node);
+                    prev_node->setLeft(old_node);
+                }
+            }   // collision 해결
+
+            // 머클 루트까지 re-hashing
             MerkleNode *tmp;
             while(!stk.empty()) {
-                tmp = stk.top();
-                stk.pop();
+                tmp = stk.top(); stk.pop();
 
                 tmp->reHash();
             }
@@ -326,6 +339,8 @@ namespace gruut {
             MerkleNode *node = getMerkleNode(path);
 
             node->setNodeInfo(data);
+
+            // 머클 루트까지 re-hashing
             while(!stk.empty()) {
                 node = stk.top();
                 stk.pop();
@@ -341,6 +356,8 @@ namespace gruut {
 
             node = getMerkleNode(path);
             parent = stk.top(); stk.pop();
+
+            // 해당 노드 삭제
             if (parent->getLeft() == node) {
                 parent->setLeft(nullptr);
                 delete node;
@@ -350,6 +367,7 @@ namespace gruut {
                 delete node;
             }
 
+            // 머클 루트까지 올라가며 노드 정리
             do {
                 if (parent == root) {
                     parent->reHash();
@@ -386,10 +404,7 @@ namespace gruut {
             MerkleNode *node = root;
             int dir_pos = _TREE_DEPTH - 1;
             while(true) {
-                //printf("dir pos: %d\t\t", dir_pos);
-                //printf("getMerkleNode stack size: %ld\n", stk.size());
                 if (!node->isDummy()) {
-                    //printf("not dummy\n");
                     ret = node;
                     break;
                 }
