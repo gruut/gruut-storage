@@ -9,23 +9,27 @@ using namespace std;
 
 int main() {
 
-    gruut::StorageLib s_lib;
-    string smart_contract; // json data from smart contract
 
-    s_lib.dbConnect();
-    if(s_lib.getProblem() == 1) {
-        return 0;
-    }
+    string smart_contract; // json data from smart contract
 
     smart_contract = "{\"query\":\"update\",\"user_id\":\"mizno\",\"var_name\":\"acc_bal\",\"var_value\":\"180000\"}";
 
-    // s_lib.funcInsert("8", "mang", "int", "acc_bal", "150000");
-    // s_lib.funcUpdate("mizno", "account_balance", "200000");
-    // s_lib.funcDelete("mang", "acc_bal");
+    gruut::mariaDb mariaDb;
 
-    s_lib.selectAll();
+    mariaDb.setServerIp("127.0.0.1");
+    mariaDb.setAdmin("root");
+    mariaDb.setPassword("1234");
+    mariaDb.setDatabase("thevaulters");
+    mariaDb.setPort("3307");
+
+    mariaDb.connectionSetup();
+
+    // mariaDb.funcInsert("8", "mang", "int", "acc_bal", "150000");
+    mariaDb.funcUpdate("mizno", "acc_bal", "210000");
+    // mariaDb.funcDelete("mang", "acc_bal");
+    mariaDb.selectAll();
+
+    mariaDb.disConnection();
 
     return 0;
-
-
 }

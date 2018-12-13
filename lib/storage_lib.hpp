@@ -16,7 +16,59 @@ using json = nlohmann::json;
 
 namespace gruut {
 
-    class StorageLib {
+    class dbSetting {
+
+    protected:
+
+        string server_ip;
+        string admin;
+        string password;
+        string database;
+        string port;
+        int m_problem; // for debugging
+        string query;
+
+    public:
+
+        dbSetting() {
+            cout << "*** dbSetting() is called" << endl;
+        }
+
+        ~dbSetting() {
+            cout << "*** ~dbSetting() is called" << endl;
+        }
+
+        void setServerIp(string param) {server_ip = param;}
+        string getServerIp() {return server_ip;}
+
+        void setAdmin(string param) {admin = param;}
+        string getAdmin() {return admin;}
+
+        void setPassword(string param) {password = param;}
+        string getPassword() {return password;}
+
+        void setDatabase(string param) {database = param;}
+        string getDatabase() {return database;}
+
+        void setPort(string param) {port = param;}
+        string getPort() {return port;}
+
+        int getProblem() {return m_problem;}
+
+        void connectionSetup() {}
+        void performQuery(string query) {}
+        void disConnection() {}
+
+        void funcInsert(string record_id, string user_id, string var_type, string var_name, string var_value) {}
+        void funcUpdate(string user_id, string var_name, string var_value) {}
+        void funcDelete(string user_id, string var_name) {}
+        void selectAll() {}
+
+    };
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class mariaDb: public dbSetting {
 
     private:
 
@@ -26,86 +78,70 @@ namespace gruut {
         int fields;
         int i;
 
-        string query; // query variable
-        int m_problem; // check whether the process is ok(0) or not(1)
-
-        struct connection_details {
-            char const *server;
-            char const *user;
-            char const *password;
-            char const *database;
-            unsigned int port;
-
-        };
-
-        MYSQL *mysqlConnectionSetup(struct connection_details mysql_details) {
-            MYSQL *connection = mysql_init(NULL);
-            if (!mysql_real_connect(connection, mysql_details.server, mysql_details.user, mysql_details.password, mysql_details.database, mysql_details.port, NULL, 0)) {
-                printf("Connection error : %s\n", mysql_error(connection));
-                exit(1);
-            }
-            return connection;
-        }
-
-        MYSQL_RES *mysqlPerformQuery(MYSQL *connection, char const *sql_query) {
-            if (mysql_query(connection, sql_query)) {
-                printf("MYSQL query error : %s\n", mysql_error(connection));
-                exit(1);
-            }
-            return mysql_use_result(connection);
-        }
-
     public:
 
-        int getProblem() {
-            return m_problem;
+        mariaDb() {
+            cout << "*** mariaDb() is called" << endl;
         }
 
-        void dbConnect() {
-            connection_details mysqlD;
-            mysqlD.server = "127.0.0.1";
-            mysqlD.user = "root";
-            mysqlD.password = "1234";
-            mysqlD.database = "thevaulters";
-            mysqlD.port = 3307;
+        ~mariaDb() {
+            cout << "*** ~mariaDb() is called" << endl;
+        }
 
-            conn = mysqlConnectionSetup(mysqlD);
-
-            if (conn != NULL) {
-                cout << "*** You are connected to the database." << endl;
-            } else {
+        void connectionSetup() {
+            MYSQL *connection = mysql_init(NULL);
+            if (!mysql_real_connect(connection, getServerIp().c_str(), getAdmin().c_str(), getPassword().c_str(), getDatabase().c_str(), atoi(getPort().c_str()), NULL, 0)) {
+                cout << "*** Not connected: " << mysql_error(connection) << endl;
                 m_problem = 1;
+            } else {
+                conn = connection;
+                cout << "*** Connected" << endl;
+                m_problem = 0;
             }
+        }
+
+        void performQuery(string query) {
+            if (mysql_query(conn, query.c_str())) {
+                cout << query.c_str() << endl;
+                printf("MYSQL query error : %s\n", mysql_error(conn));
+                exit(1);
+            }
+            res = mysql_use_result(conn);
+        }
+
+        void disConnection() {
+            mysql_close(conn);
+            cout << "*** Disconnected." << endl;
         }
 
         void funcInsert(string record_id, string user_id, string var_type, string var_name, string var_value) {
             query = "INSERT INTO test VALUES('"+ record_id +"', '" + user_id + "', '" + var_type + "', '" + var_name + "', '" + var_value + "')";
-            mysqlPerformQuery(conn, query.c_str());
+            performQuery(query);
         }
 
         void funcUpdate(string user_id, string var_name, string var_value) {
             query = "UPDATE test SET var_value='" + var_value + "' WHERE user_id='" + user_id + "' AND var_name='" + var_name +"'";
-            mysqlPerformQuery(conn, query.c_str());
+            performQuery(query);
         }
 
         void funcDelete(string user_id, string var_name) {
             query = "DELETE FROM test WHERE user_id='" + user_id + "' AND var_name='" + var_name + "'";
-            mysqlPerformQuery(conn, query.c_str());
+            performQuery(query);
         }
 
         void selectAll() {
-            res = mysqlPerformQuery(conn, "SELECT * FROM test ORDER BY record_id");
+            query = "SELECT * FROM test ORDER BY record_id";
+            performQuery(query);
             fields = mysql_num_fields(res); // the number of field
-
             while((row = mysql_fetch_row(res)) != NULL) {
                 for(i=0; i<fields; i++) {
-                    printf("%15s\t", row[i]);
+                    printf("%10s\t", row[i]);
                 }
                 printf("\n");
             }
         }
-
     };
+
 }
 
 #endif //WORKSPACE_STORAGE_LIB_HPP
