@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <string>
+#include <sstream>
 #include <stack>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,24 +32,75 @@ struct test_data {
 test_data null_data = { -1, "TEST", "TEST", "TEST", -1 };
 //////////////////////////////////////////////////
 
+string toHex(int num)
+{
+    string str_hex;
+    stringstream ss;
+    ss << hex << num;
+    ss >> str_hex;
+    return str_hex;
+}
+string valueToStr(vector<uint8_t> value)
+{
+    string str = "";
+    for (auto v: value) {
+        str += toHex(v);
+    }
+    return str;
+}
+
+// Debugging
+vector<uint8_t> makeValueDebug(string key) {
+    vector<uint8_t> ret;
+    string value = sha256(key);
+
+    uint8_t tmp;
+    ret.clear();
+    for(int i = 0; i < value.length() / 2; ++i) {
+        tmp = (uint8_t) strtoul(value.substr(i*2, 2).c_str(), NULL, 16);
+        ret.push_back(tmp);
+    }
+    return ret;
+}
+vector<uint8_t> getHash(string l_value, string r_value)
+{
+    vector<uint8_t> value;
+    if (l_value == "")
+        value = makeValueDebug(r_value);
+    else if (r_value == "")
+        value = makeValueDebug(l_value);
+    else
+        value = makeValueDebug(l_value + r_value);
+
+    return value;
+}
+
 namespace gruut {
     class MerkleNode {
     private:
         MerkleNode *m_left;
         MerkleNode *m_right;
         uint m_suffix;    // TODO: 비트 확장
-        string m_value;     // TODO: 비트 확장
-        //vector<uint8_t> m_value;
+        //string m_value;     // TODO: 비트 확장
+        vector<uint8_t> m_value;
         uint m_debug_path;      // 노드 분기 시 필요할 것으로 예상됨
         int m_debug_uid;          // 테스트 용도
         int m_suffix_len;
         //MerkleNode *m_next;
 
-        string makeValue(test_data data) {
+        void makeValue(test_data data) {
             string key = to_string(data.uid) + data.user_name + data.var_name + data.var_type + to_string(data.var_value);
+            makeValue(key);
+        }
+        void makeValue(string key) {
             string value = sha256(key);
 
-            return value;
+            uint8_t tmp;
+            m_value.clear();
+            for(int i = 0; i < value.length() / 2; ++i) {
+                tmp = (uint8_t) strtoul(value.substr(i*2, 2).c_str(), NULL, 16);
+                m_value.push_back(tmp);
+            }
         }
         uint makePath(test_data data) {
             string key = to_string(data.uid) + data.user_name + data.var_type;
@@ -66,7 +118,7 @@ namespace gruut {
             m_right = nullptr;
             //m_next = nullptr;
             m_suffix = 0;
-            m_value = makeValue(data);
+            makeValue(data);
             //m_path = makePath(data);
             m_debug_path = 0;
             m_debug_uid = data.uid;
@@ -75,25 +127,27 @@ namespace gruut {
 
         void reHash()
         {
-            string l_value, r_value;
+            string l_value = "", r_value = "";
 
             if (getLeft() != nullptr) {
-                l_value = getLeft()->getValue();
+                l_value = valueToStr(getLeft()->getValue());
             }
             if (getRight() != nullptr) {
-                r_value = getRight()->getValue();
+                r_value = valueToStr(getRight()->getValue());
             }
 
-            if (l_value.empty()) {
-                m_value = sha256(r_value);
-            }
-            else if (r_value.empty()) {
-                m_value = sha256(l_value);
-            }
-            else {
-                m_value = sha256(l_value + r_value);
-            }
+            reHash(l_value, r_value);
         }
+        void reHash(string l_value, string r_value)
+        {
+            if (l_value == "")
+                makeValue(r_value);
+            else if (r_value == "")
+                makeValue(l_value);
+            else
+                makeValue(l_value + r_value);
+        }
+
         // 노드 삭제 시 부모 노드로 이동하여 변경되는 path 와 suffix, suffix_len 의 내용을 반영
         // 1. path 의 LSB 에서 suffix_len 번째 비트를 저장
         // 2. suffix 의 LSB 에서 suffix_len 번째 비트에 저장된 비트를 넣고 suffix_len 1 증가
@@ -128,7 +182,7 @@ namespace gruut {
         void setNodeInfo(test_data data)
         {
             m_debug_uid = data.uid;
-            m_value = makeValue(data);
+            makeValue(data);
         }
         void overwriteNode(MerkleNode *node)
         {
@@ -142,11 +196,12 @@ namespace gruut {
             moveToParent(); // suffix, suffix_len, path 값 수정
         }
 
+
         /* getter */
         MerkleNode* getLeft()   { return m_left; }
         MerkleNode* getRight()  { return m_right; }
         uint getSuffix()        { return m_suffix; }
-        string getValue()       { return m_value; }
+        vector<uint8_t> getValue()       { return m_value; }
         uint getDebugPath()     { return m_debug_path; }
         int getDebugUid()       { return m_debug_uid; }
         int getSuffixLen()      { return m_suffix_len; }
@@ -198,7 +253,7 @@ namespace gruut {
             string str_dir = !_debug_dir ? "Left" : "Right";
             if (!node->isDummy()) {
                 printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
-                printf("[uid %-3d] path: %s, hash_value: %s\n", node->getDebugUid(), intToBin(node->getDebugPath()), node->getValue().c_str());
+                printf("[uid %-3d] path: %s, hash_value: %s\n", node->getDebugUid(), intToBin(node->getDebugPath()), valueToStr(node->getValue()).c_str());
             }
             _debug_depth--;
         }
@@ -406,7 +461,6 @@ namespace gruut {
             int dir_pos = _TREE_DEPTH - 1;
             while(true) {
                 if (!node->isDummy()) {
-                    printf("not dummy\n");
                     ret = node;
                     break;
                 }
@@ -424,6 +478,35 @@ namespace gruut {
                 dir_pos--;
             }
             return ret;
+        }
+
+        vector< vector<uint8_t> > getSiblings(uint _path)
+        {
+            MerkleNode *node = getMerkleNode(_path);
+
+            vector< vector<uint8_t> > siblings;
+            vector<uint8_t> value;
+
+            MerkleNode *parent_node;
+            siblings.clear();
+            while(!stk.empty())
+            {
+                parent_node = stk.top();
+                stk.pop();
+
+                value.clear();
+                if (parent_node->getLeft() == node) {
+                    if (parent_node->getRight() != nullptr)
+                        value = parent_node->getRight()->getValue();
+                }
+                else if (parent_node->getRight() == node) {
+                    if (parent_node->getLeft() != nullptr)
+                        value = parent_node->getLeft()->getValue();
+                }
+                //printf("getSiblings::value.size() = %ld\n", value.size());
+                siblings.push_back(value);
+            }
+            return siblings;
         }
 
         // Debugging
@@ -451,7 +534,8 @@ namespace gruut {
 
         // getter
         ullint getSize()   { return m_size; }
-        string getRootValue()   { return root->getValue(); }
+        vector<uint8_t> getRootValue()   { return root->getValue(); }
+        string getRootValueStr()   { return valueToStr(root->getValue()); }
         MerkleNode* getRoot()   { return root; }
 
     };
