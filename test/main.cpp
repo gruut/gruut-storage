@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
+#include <cstring>
 #include <merkle_lib.hpp>
+#include "sha256/sha256.h"
 using namespace std;
 
 
@@ -26,6 +26,7 @@ uint path[6] = {
 #define _DATA_LEN 6
 
 int main() {
+    /*
     gruut::MerkleTree tree = gruut::MerkleTree();
 
     tree.addNode(path[3], data[3]);
@@ -35,6 +36,23 @@ int main() {
 
     tree.removeNode(path[4]);
     tree.printTreePostOrder();
+    */
+
+    string str = sha256("123");
+    //str = "41424344";
+    vector<uint8_t> value;
+    uint8_t tmp;
+    for(int i = 0; i < str.length() / 2; ++i) {
+        tmp = strtoul(str.substr(i*2, 2).c_str(), NULL, 16);
+        value.push_back(tmp);
+    }
+    cout<<str<<endl;
+    for(auto v: value) {
+        int a = v;
+        cout << a << " ";
+    }
+
+
 
     return 0;
 }

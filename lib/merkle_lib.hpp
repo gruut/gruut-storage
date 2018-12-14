@@ -28,7 +28,7 @@ struct test_data {
     int var_value;
 };
 
-test_data null_data = { -1, "0", "0", "0", -1 };
+test_data null_data = { -1, "TEST", "TEST", "TEST", -1 };
 //////////////////////////////////////////////////
 
 namespace gruut {
@@ -38,6 +38,7 @@ namespace gruut {
         MerkleNode *m_right;
         uint m_suffix;    // TODO: 비트 확장
         string m_value;     // TODO: 비트 확장
+        //vector<uint8_t> m_value;
         uint m_debug_path;      // 노드 분기 시 필요할 것으로 예상됨
         int m_debug_uid;          // 테스트 용도
         int m_suffix_len;
