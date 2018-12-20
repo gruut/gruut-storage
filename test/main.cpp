@@ -16,20 +16,28 @@ int main() {
 
     gruut::mariaDb mariaDb;
 
-    mariaDb.setServerIp("127.0.0.1");
-    mariaDb.setAdmin("root");
-    mariaDb.setPassword("1234");
-    mariaDb.setDatabase("thevaulters");
-    mariaDb.setPort("3307");
+    string serverIp = "127.0.0.1";
+    string serverPort = "3307";
+    string admin = "root";
+    string pw = "1234";
+    string db = "thevaulters";
 
-    mariaDb.connectionSetup();
+    mariaDb.setServerIp(&serverIp);
+    mariaDb.setAdmin(&admin);
+    mariaDb.setPassword(&pw);
+    mariaDb.setDatabase(&db);
+    mariaDb.setPort(&serverPort);
 
-    // mariaDb.funcInsert("8", "mang", "int", "acc_bal", "150000");
-    mariaDb.funcUpdate("mizno", "acc_bal", "210000");
-    // mariaDb.funcDelete("mang", "acc_bal");
-    mariaDb.selectAll();
+    if(mariaDb.connectionSetup() == 0) {
+        // mariaDb.insert("8", "mang", "int", "acc_bal", "150000"); // records_id, user_id, var_type, var_name, var_value
+        // mariaDb.update("mizno", "acc_bal", "210000"); // user_id, var_name, var_value
+        // mariaDb.deleteData("mang", "acc_bal"); // user_id, var_name
+        mariaDb.selectAll();
+        if(mariaDb.disConnection()==0) {
 
-    mariaDb.disConnection();
+        }
+    }
+
 
     return 0;
 }
