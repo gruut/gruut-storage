@@ -59,8 +59,10 @@ namespace gruut {
         void insert(string recordId, string userId, string varType, string varName, string varValue) {}
         void update(string userId, string varName, string varValue) {}
         void deleteData(string userId, string varName) {}
-        void select() {}
+        void selectUsingUserId() {}
         void selectAll() {}
+
+        int checkUserId(string userId) {return 0;}
 
     };
 
@@ -73,7 +75,7 @@ namespace gruut {
         MYSQL *conn;
         MYSQL_RES *res;
         MYSQL_ROW row;
-        int fields;
+        int columns;
         int i;
 
     public:
@@ -117,37 +119,73 @@ namespace gruut {
 
         void insert(string recordId, string userId, string varType, string varName, string varValue) {
             query = "INSERT INTO test VALUES('"+ recordId +"', '" + userId + "', '" + varType + "', '" + varName + "', '" + varValue + "')";
-            performQuery(query);
+            if(performQuery(query) == 0) {
+
+            }
         }
 
         void update(string userId, string varName, string varValue) {
-            query = "UPDATE test SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_name='" + varName +"'";
-            performQuery(query);
+            if(checkUserId(userId) == 0) {
+                query = "UPDATE test SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_name='" + varName +"'";
+                if(performQuery(query) == 0) {
+
+                }
+            }
         }
 
         void deleteData(string userId, string varName) {
             query = "DELETE FROM test WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
-            performQuery(query);
+            if(performQuery(query) == 0) {
+
+            }
         }
 
         void selectUsingUserId(string userId) {
-
+            query = "SELECT * FROM test WHERE user_id='" + userId + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    for(i=0; i<columns; i++) {
+                        printf("%15s\t", row[i]);
+                    }
+                    printf("\n");
+                }
+            }
+            mysql_free_result(res);
         }
 
         void selectAll() {
             query = "SELECT * FROM test ORDER BY record_id";
             if(performQuery(query) == 0) {
-                fields = mysql_num_fields(res); // the number of field
+                columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
-                    for(i=0; i<fields; i++) {
-                        printf("%10s\t", row[i]);
+                    for(i=0; i<columns; i++) {
+                        printf("%15s\t", row[i]);
                     }
                     printf("\n");
                 }
             }
+            mysql_free_result(res);
+        }
+
+        int checkUserId(string userId) {
+            query = "SELECT user_id FROM test WHERE user_id='" + userId + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                if((row = mysql_fetch_row(res)) != NULL) {
+                    cout << row[0] << " user exists." << endl;
+                    mysql_free_result(res);
+                    return 0;
+                } else {
+                    cout << userId << " user does not exist." << endl;
+                    mysql_free_result(res);
+                    return 1;
+                }
+            }
+            mysql_free_result(res);
+            return 0;
         }
     };
-
 }
 
 #endif //WORKSPACE_STORAGE_LIB_HPP
