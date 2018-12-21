@@ -56,13 +56,15 @@ namespace gruut {
         int performQuery(string query) {return 0;}
         int disConnection() {return 0;}
 
-        void insert(string recordId, string userId, string varType, string varName, string varValue) {}
-        void update(string userId, string varName, string varValue) {}
-        void deleteData(string userId, string varName) {}
-        void selectUsingUserId() {}
-        void selectAll() {}
+        int insert(string recordId, string userId, string varType, string varName, string varValue) {return 0;}
+        int update(string userId, string varName, string varValue) {return 0;}
+        int deleteData(string userId, string varName) {return 0;}
+        int selectAllUsingUserId() {return 0;}
+        int selectAll() {return 0;}
 
         int checkUserId(string userId) {return 0;}
+        int checkVarName(string varName) {return 0;}
+        int checkUserIdVarName(string userId, string varName) {return 0;}
 
     };
 
@@ -104,8 +106,8 @@ namespace gruut {
         int performQuery(string query) {
             if (mysql_query(conn, query.c_str())) {
                 cout << query.c_str() << endl;
-                printf("MYSQL query error : %s\n", mysql_error(conn));
-                exit(1);
+                cout << "error in performQuery() function: " << mysql_error(conn) << endl;
+                return 1;
             }
             res = mysql_use_result(conn);
             return 0;
@@ -117,30 +119,61 @@ namespace gruut {
             return 0;
         }
 
-        void insert(string recordId, string userId, string varType, string varName, string varValue) {
-            query = "INSERT INTO test VALUES('"+ recordId +"', '" + userId + "', '" + varType + "', '" + varName + "', '" + varValue + "')";
-            if(performQuery(query) == 0) {
-
+        int insert(string recordId, string userId, string varType, string varName, string varValue) {
+            if(checkUserIdVarName(&userId, &varName) == 1) {
+                query = "INSERT INTO test VALUES('"+ recordId +"', '" + userId + "', '" + varType + "', '" + varName + "', '" + varValue + "')";
+                if(performQuery(query) == 0) {
+                    cout << "insert() function was processed!!!" << endl;
+                    return 0;
+                } else {
+                    cout << "insert() function was not processed!!!" << endl;
+                    return 1;
+                }
+            } else {
+                cout << "insert() function was not processed!!!" << endl;
+                return 1;
             }
+            cout << "insert() function was processed!!!" << endl;
+            return 0;
         }
 
-        void update(string userId, string varName, string varValue) {
-            if(checkUserId(userId) == 0) {
+        int update(string userId, string varName, string varValue) {
+            if(checkUserIdVarName(&userId, &varName) == 0) {
                 query = "UPDATE test SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_name='" + varName +"'";
                 if(performQuery(query) == 0) {
-
+                    cout << "update() function was processed!!!" << endl;
+                    return 0;
+                } else {
+                    cout << "update() function was not processed!!!" << endl;
+                    return 1;
                 }
+            } else {
+                cout << "update() function was not processed!!!" << endl;
+                return 1;
             }
+            cout << "update() function was processed!!!" << endl;
+            return 0;
         }
 
-        void deleteData(string userId, string varName) {
-            query = "DELETE FROM test WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
-            if(performQuery(query) == 0) {
-
+        int deleteData(string userId, string varName) {
+            if(checkUserIdVarName(&userId, &varName) == 0) {
+                query = "DELETE FROM test WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
+                if(performQuery(query) == 0) {
+                    cout << "deleteData() function was processed!!!" << endl;
+                    return 0;
+                } else {
+                    cout << "deleteData() function was not processed!!!" << endl;
+                    return 1;
+                }
+            } else {
+                cout << "deleteData() function was not processed!!!" << endl;
+                return 1;
             }
+            cout << "deleteData() function was processed!!!" << endl;
+            return 0;
         }
 
-        void selectUsingUserId(string userId) {
+        int selectAllUsingUserId(string userId) {
             query = "SELECT * FROM test WHERE user_id='" + userId + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
@@ -152,9 +185,10 @@ namespace gruut {
                 }
             }
             mysql_free_result(res);
+            return 0;
         }
 
-        void selectAll() {
+        int selectAll() {
             query = "SELECT * FROM test ORDER BY record_id";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
@@ -166,6 +200,7 @@ namespace gruut {
                 }
             }
             mysql_free_result(res);
+            return 0;
         }
 
         int checkUserId(string userId) {
@@ -173,11 +208,53 @@ namespace gruut {
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
-                    cout << row[0] << " user exists." << endl;
+                    cout << row[0] << endl;
+                    cout << "exists." << endl;
                     mysql_free_result(res);
                     return 0;
                 } else {
-                    cout << userId << " user does not exist." << endl;
+                    cout << userId << endl;
+                    cout << "does not exist." << endl;
+                    mysql_free_result(res);
+                    return 1;
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int checkVarName(string varName) {
+            query = "SELECT var_name FROM test WHERE var_name='" + varName + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                if((row = mysql_fetch_row(res)) != NULL) {
+                    cout << row[0] << endl;
+                    cout << "exists." << endl;
+                    mysql_free_result(res);
+                    return 0;
+                } else {
+                    cout << varName << endl;
+                    cout << "does not exist." << endl;
+                    mysql_free_result(res);
+                    return 1;
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int checkUserIdVarName(string *userId, string *varName) {
+            query = "SELECT user_id, var_name FROM test WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";;
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                if((row = mysql_fetch_row(res)) != NULL) {
+                    cout << row[0] << ", "<< row[1] << endl;
+                    cout << "exists." << endl;
+                    mysql_free_result(res);
+                    return 0;
+                } else {
+                    cout << *userId << ", " << *varName << endl;
+                    cout << "does not exist." << endl;
                     mysql_free_result(res);
                     return 1;
                 }
@@ -186,6 +263,23 @@ namespace gruut {
             return 0;
         }
     };
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    class mysqlDb: public dbSetting {
+
+    private:
+        int temp;
+
+    public:
+        mysqlDb() {
+            cout << "*** mysqlDb() is called" << endl;
+        }
+        ~mysqlDb() {
+            cout << "*** ~mysqlDb() is called" << endl;
+        }
+    };
+
 }
 
 #endif //WORKSPACE_STORAGE_LIB_HPP

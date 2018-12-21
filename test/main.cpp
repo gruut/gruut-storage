@@ -29,12 +29,17 @@ int main() {
     mariaDb.setPort(&serverPort);
 
     if(mariaDb.connectionSetup() == 0) {
-        // mariaDb.insert("8", "mang", "int", "acc_bal", "150000"); // records_id, user_id, var_type, var_name, var_value of Database
-        mariaDb.update("mizno", "acc_bal", "200000"); // user_id, var_name, var_value of Database
-        // mariaDb.deleteData("mang", "acc_bal"); // user_id, var_name of Database
-        // mariaDb.selectUsingUserId("mizno"); // user_id of Database
+
+        // mariaDb.insert("8", "mang", "int", "acc_bal", "150000"); // record_id, user_id, var_name, var_name and var_value of Database
+        mariaDb.update("mizno", "acc_bal", "250000"); // user_id, var_name and var_value of Database
+        // mariaDb.deleteData("mang", "acc_bal"); // user_id and var_name of Database
+
+        // mariaDb.selectAllUsingUserId("mizno"); // user_id of Database
         // mariaDb.selectAll();
+
         // mariaDb.checkUserId("mizno"); // user_id of Database
+        // mariaDb.checkVarName("user_name"); // var_name of Database
+        // mariaDb.checkUserIdVarName("mizno", "user_name"); // var_name of Database
 
         if(mariaDb.disConnection()==0) {
 
