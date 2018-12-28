@@ -22,10 +22,10 @@ typedef unsigned long long int ullint;
 
 /////////////////// test data /////////////////////
 struct test_data {
-    int uid;
-    string user_name;
-    string var_name;
+    int record_id;
+    string user_id;
     string var_type;
+    string var_name;
     int var_value;
 };
 
@@ -89,7 +89,7 @@ namespace gruut {
         //MerkleNode *m_next;
 
         void makeValue(test_data data) {
-            string key = to_string(data.uid) + data.user_name + data.var_name + data.var_type + to_string(data.var_value);
+            string key = to_string(data.record_id) + data.user_id + data.var_name + data.var_type + to_string(data.var_value);
             makeValue(key);
         }
         void makeValue(string key) {
@@ -103,7 +103,7 @@ namespace gruut {
             }
         }
         uint makePath(test_data data) {
-            string key = to_string(data.uid) + data.user_name + data.var_type;
+            string key = to_string(data.record_id) + data.user_id + data.var_type;
             string value = sha256(key).substr(0, _SHA256_SPLIT);
             uint path = (uint) strtoul(value.c_str(), 0, 16);
             uint mask = (1 << _TREE_DEPTH) - 1;
@@ -121,7 +121,7 @@ namespace gruut {
             makeValue(data);
             //m_path = makePath(data);
             m_debug_path = 0;
-            m_debug_uid = data.uid;
+            m_debug_uid = data.record_id;
             m_suffix_len = -1;
         }
 
@@ -181,7 +181,7 @@ namespace gruut {
         void setDebugPath(uint _path)        { m_debug_path  = _path; }
         void setNodeInfo(test_data data)
         {
-            m_debug_uid = data.uid;
+            m_debug_uid = data.record_id;
             makeValue(data);
         }
         void overwriteNode(MerkleNode *node)

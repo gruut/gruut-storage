@@ -15,6 +15,7 @@
 using namespace std;
 using json = nlohmann::json;
 
+
 namespace gruut
 {
     class storage
@@ -22,14 +23,10 @@ namespace gruut
     private:
         int MAX_LAYER;
         MerkleTree m_tree;
-    public:
-        storage()
-        {
-            readConfig();
-        }
+        mariaDb m_server;
+
         void readConfig()
         {
-            // init
             ifstream config_file("/mnt/d/lab/Project/workspace/gruut-storage/lib/storage_config.json");
             if(!config_file) {
                 cout << "ifstream error... Please check config file path" << endl;
@@ -40,8 +37,49 @@ namespace gruut
 
             MAX_LAYER = js["MAX_LAYER"];
         }
-        void test()
+        void setupMerkleTree()
         {
+            
+        }
+        void setupDB()
+        {
+            gruut::parseJson pJ;
+
+            string serverIp = "127.0.0.1";
+            string serverPort = "3307";
+            string admin = "root";
+            string pw = "1234";
+            string db = "thevaulters";
+
+            m_server.setServerIp(&serverIp);
+            m_server.setAdmin(&admin);
+            m_server.setPassword(&pw);
+            m_server.setDatabase(&db);
+            m_server.setPort(&serverPort);
+
+            if(m_server.connectionSetup() != 0) {
+                cout << "setupDB function failed.." << endl;
+                exit(1);
+            }
+        }
+        void destroyDB()
+        {
+            if(m_server.disConnection() != 0) {
+                cout << "distroyDB function failed.." << endl;
+                exit(1);
+            }
+        }
+
+    public:
+        storage()
+        {
+            readConfig();
+            setupDB();
+            setupMerkleTree();
+        }
+        ~storage()
+        {
+            destroyDB();
         }
     };
 }
