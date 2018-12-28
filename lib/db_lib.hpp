@@ -2,8 +2,8 @@
 // Created by CH on 2018-11-22.
 //
 
-#ifndef WORKSPACE_STORAGE_LIB_HPP
-#define WORKSPACE_STORAGE_LIB_HPP
+#ifndef WORKSPACE_DB_LIB_HPP
+#define WORKSPACE_DB_LIB_HPP
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -416,4 +416,4 @@ namespace gruut {
 
 }
 
-#endif //WORKSPACE_STORAGE_LIB_HPP
+#endif //WORKSPACE_DB_LIB_HPP
