@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <sstream>
+#include <storage_lib.hpp>
 #include "json.hpp"
 #include "sha256.h"
 #include "db_lib.hpp"
@@ -8,7 +9,7 @@
 
 using namespace std;
 
-int main() {
+int DB_test() {
 
     gruut::parseJson pJ;
     gruut::mariaDb mariaDb;
@@ -65,5 +66,13 @@ int main() {
 
         }
     }
+    return 0;
+}
+
+
+int main()
+{
+    gruut::storage g_storage;
+
     return 0;
 }

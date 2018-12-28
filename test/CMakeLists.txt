@@ -11,7 +11,7 @@ include_directories(/usr/local/include/nlohmann)
 include_directories(../lib)
 include_directories(../lib/sha256)
 
-add_executable(workspace_temp main.cpp ../lib/db_lib.hpp ../lib/merkle_lib.hpp ../lib/sha256/sha256.cpp)
+add_executable(workspace_temp main.cpp ../lib/storage_lib.hpp ../lib/db_lib.hpp ../lib/merkle_lib.hpp ../lib/sha256/sha256.cpp)
 
 
 
