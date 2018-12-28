@@ -6,8 +6,10 @@
 #define WORKSPACE_STORAGE_LIB_HPP
 
 #include <iostream>
-#include <fstream>
+#include <stdio.h>
+#include <fstream>      // ifstream 클래스
 #include <string>
+#include <utility>      // pair 클래스
 #include "json.hpp"
 #include "merkle_lib.hpp"
 #include "db_lib.hpp"
@@ -39,7 +41,15 @@ namespace gruut
         }
         void setupMerkleTree()
         {
-            
+            vector< pair< int, vector<string> > > all = m_server.selectAll();
+
+            for(auto item: all)
+            {
+                printf("%5d\t", item.first);
+                for(auto column: item.second)
+                    printf("%15s\t", column.c_str());
+                printf("\n");
+            }
         }
         void setupDB()
         {

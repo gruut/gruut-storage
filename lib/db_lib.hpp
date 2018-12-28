@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <mysql.h>
 #include <iostream>
+#include <utility>
 #include <json.hpp>
 
 using namespace std;
@@ -260,19 +261,26 @@ namespace gruut {
             return 0;
         }
 
-        int selectAll() {
+        vector< pair< int, vector<string> > > selectAll() {
             query = "SELECT * FROM test ORDER BY record_id";
+            vector< pair< int, vector<string> > > all;
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
-                    for(i=0; i<columns; i++) {
+                    pair< int, vector<string> > record;
+                    printf("%15s\t", row[0]);
+                    record.first = stoi(row[0]);
+                    record.second.clear();
+                    for(i=1; i<columns; i++) {
+                        record.second.push_back(row[i]);
                         printf("%15s\t", row[i]);
                     }
+                    all.push_back(record);
                     printf("\n");
                 }
             }
             mysql_free_result(res);
-            return 0;
+            return all;
         }
 
         int checkUserId(string userId) {
