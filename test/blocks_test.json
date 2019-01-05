@@ -2,36 +2,35 @@
   "blocks": [
     {
       "transactions": [
-        {"command": "get", "val": 1000, "to": "mizno"},
-        {"command": "send", "val": 1000, "from": "mizno", "to": "mang"},
-        {"command": "get", "val": -1000, "to": "mang"}
+        {"command": "add", "to_user_id": "mizno", "to_var_name": "gru", "value": 1000},
+        {"command": "send", "from_user_id": "mizno", "from_var_name": "gru", "to_user_id": "mang", "to_var_name": "gru", "value": 1000},
+        {"command": "add", "to_user_id": "mang", "to_var_name": "gru", "value": -1000}
       ]
     },
     {
       "transactions": [
-        {"command": "get", "val": 2000, "to": "mizno"},
-        {"command": "get", "val": 2000, "to": "mang"},
-        {"command": "add", "user_id": "kjh", "var_type": "string", "var_name": "user_name", "var_value": "jeonghyeon"},
-        {"command": "add", "user_id": "kjh", "var_type": "string", "var_name": "bank_name", "var_value": "hana"},
-        {"command": "add", "user_id": "kjh", "var_type": "int", "var_name": "acc_num", "var_value": "8481111"},
-        {"command": "add", "user_id": "kjh", "var_type": "int", "var_name": "acc_bal", "var_value": "100000"}
+        {"command": "add", "to_user_id": "mizno", "to_var_name": "gru", "value": 2000},
+        {"command": "add", "to_user_id": "mang", "to_var_name": "gru", "value": 2000},
+        {"command": "new", "user_id": "kjh", "var_type": "string", "var_name": "user_name", "var_value": "jeonghyeon"},
+        {"command": "new", "user_id": "kjh", "var_type": "coin", "var_name": "btc", "var_value": "10"},
+        {"command": "new", "user_id": "kjh", "var_type": "coin", "var_name": "gru", "var_value": "100000"}
       ]
     },
     {
       "transactions": [
-        {"command": "get", "val": 3000, "to": "mizno"},
-        {"command": "get", "val": 3000, "to": "mang"}
+        {"command": "add", "to_user_id": "mizno", "to_var_name": "gru", "value": 3000},
+        {"command": "add", "to_user_id": "mang", "to_var_name": "gru", "value": 3000}
       ]
     },
     {
       "transactions": [
-        {"command": "send", "val": 5000, "from": "mizno", "to": "mang"}
+        {"command": "send", "from_user_id": "mizno", "from_var_name": "gru", "to_user_id": "mang", "to_var_name": "gru", "value": 5000}
       ]
     },
     {
       "transactions": [
-        {"command": "get", "val": -3000, "to": "mang"},
-        {"command": "get", "val": 1000, "to": "mang"}
+        {"command": "add", "to_user_id": "mang", "to_var_name": "gru", "value": -3000},
+        {"command": "add", "to_user_id": "mang", "to_var_name": "gru", "value": 1000}
       ]
     }
   ]
