@@ -120,6 +120,7 @@ namespace gruut {
         int update(string userId, string varName, string varValue) {return 0;}
         int deleteData(string userId, string varName) {return 0;}
         int selectAllUsingUserId() {return 0;}
+        int selectValueUsingUserIdVarName(string userId, string varName) { return 0; }
         int selectAll() {return 0;}
 
         int checkUserId(string userId) {return 0;}
@@ -261,6 +262,19 @@ namespace gruut {
             return 0;
         }
 
+        int selectValueUsingUserIdVarName(string userId, string varName) {
+            int result = -1;
+            query = "SELECT var_value FROM test WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    result = stoi(row[0]);
+                }
+            }
+            mysql_free_result(res);
+            return result;
+        }
+
         vector< pair< int, vector<string> > > selectAll() {
             query = "SELECT * FROM test ORDER BY record_id";
             vector< pair< int, vector<string> > > all;
@@ -268,15 +282,15 @@ namespace gruut {
                 columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
                     pair< int, vector<string> > record;
-                    printf("%15s\t", row[0]);
+                    //printf("%15s\t", row[0]);
                     record.first = stoi(row[0]);
                     record.second.clear();
                     for(i=1; i<columns; i++) {
                         record.second.push_back(row[i]);
-                        printf("%15s\t", row[i]);
+                        //printf("%15s\t", row[i]);
                     }
                     all.push_back(record);
-                    printf("\n");
+                    //printf("\n");
                 }
             }
             mysql_free_result(res);
