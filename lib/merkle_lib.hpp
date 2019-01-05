@@ -15,8 +15,8 @@
 using namespace std;
 
 // TODO: define 값 변경
-#define _TREE_DEPTH 3
-#define _SHA256_SPLIT 2
+#define _TREE_DEPTH 16
+#define _SHA256_SPLIT 4
 typedef unsigned int uint;
 typedef unsigned long long int ullint;
 
@@ -103,8 +103,9 @@ namespace gruut {
             }
         }
         uint makePath(test_data data) {
-            string key = to_string(data.record_id) + data.user_id + data.var_type;
-            string value = sha256(key).substr(0, _SHA256_SPLIT);
+            string key = to_string(data.record_id) + data.user_id + data.var_name;
+            string value = sha256(key);
+            value = value.substr(value.length() - _SHA256_SPLIT - 1, value.length());
             uint path = (uint) strtoul(value.c_str(), 0, 16);
             uint mask = (1 << _TREE_DEPTH) - 1;
 
@@ -206,6 +207,20 @@ namespace gruut {
         int getDebugUid()       { return m_debug_uid; }
         int getSuffixLen()      { return m_suffix_len; }
         //MerkleNode* getNext() { return m_next; }
+
+        // for Debugging (DB에 path 값 초기 세팅용도)
+        uint makePath(int record_id, string user_id, string var_name)
+        {
+            test_data tmp;
+            tmp.record_id   = record_id;
+            tmp.user_id     = user_id;
+            tmp.var_type    = "TEST";
+            tmp.var_name    = var_name;
+            tmp.var_value   = -1;
+            uint path = makePath(tmp);
+            printf("path: %u\n", path);
+            return path;
+        }
 
     };
 

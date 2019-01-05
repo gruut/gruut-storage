@@ -72,7 +72,20 @@ int DB_test() {
 
 int main()
 {
-    gruut::storage g_storage;
+//    gruut::storage g_storage;
+//
+//    g_storage.readBlocksJson();
+//    g_storage.testStorage();
+
+    gruut::MerkleNode test;
+    test.makePath(1, "mizno", "user_name");
+    test.makePath(2, "mizno", "bank_name");
+    test.makePath(3, "mizno", "btc");
+    test.makePath(4, "mizno", "gru");
+    test.makePath(5, "mang", "user_name");
+    test.makePath(6, "mang", "bank_name");
+    test.makePath(7, "mang", "btc");
+    test.makePath(8, "mang", "gru");
 
     return 0;
 }
