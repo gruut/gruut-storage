@@ -10,7 +10,9 @@
 #include <fstream>      // ifstream 클래스
 #include <string>
 #include <utility>      // pair 클래스
+#include <vector>
 #include <deque>
+#include <map>
 #include "json.hpp"
 #include "merkle_lib.hpp"
 #include "db_lib.hpp"
@@ -22,7 +24,107 @@ typedef unsigned int uint;
 
 namespace gruut
 {
-    class storage
+    // Smart contract 로 부터(?) 전달받은 transaction 들을(블록) 저장해놓는 Block 클래스
+    class Block
+    {
+    public:
+        vector<json> m_transaction;
+
+        Block()
+        {
+
+        }
+
+        void addTransaction(json new_transaction)
+        {
+            m_transaction.push_back(new_transaction);
+        }
+        void clearTransaction()
+        {
+            m_transaction.clear();
+        }
+    };
+
+
+
+
+    // Layer 클래스에 map 변수를 위한 key
+    class Key
+    {
+    public:
+        string user_id;
+        string var_type;
+        string var_name;
+
+        Key(string id, string type, string name)
+        {
+            user_id = id;
+            var_type = type;
+            var_name = name;
+        }
+    };
+    // Layer 클래스에 map 변수를 위한 value
+    class Value
+    {
+    public:
+        string var_value;
+        uint path;
+
+        Value(string value, uint _path)
+        {
+            var_value = value;
+            path = _path;
+        }
+    };
+
+
+
+    // Storage 클래스에서 rollback 구현을 위해 갖고 있는 Layer 클래스
+    // 각 Layer 에서 수행한 transaction 들과 수행 후의 머클 트리,
+    // 그리고 transaction 을 수행한 뒤의 변한 변수들을 map 으로 갖고있음
+    class Layer
+    {
+    public:
+        vector<json> transaction;
+        MerkleTree m_layer_tree;
+        map<Key, Value> m_temporary_data;   // 레이어가 갖고있는 임시 데이터. MAX_LAYER_SIZE가 넘으면 DB에 반영됨.
+
+        Layer()
+        {
+
+        }
+        Layer(Block block)
+        {
+
+        }
+        friend ostream& operator<<(ostream& os, Layer& layer);
+    };
+
+    ostream& operator<<(ostream& os, Layer& layer)
+    {
+        int t_num = 0;
+        os << "Root value: " << layer.m_layer_tree.getRootValueStr() << '\n';
+        for(auto transaction: layer.transaction)
+        {
+            os << "Transaction #" << t_num << " \t" << transaction << '\n';
+            t_num++;
+        }
+        return os;
+    }
+
+    inline bool operator==(Layer& left_layer, const Layer* right_p_layer)
+    {
+        Layer *left_p_layer = &left_layer;
+        return left_p_layer == right_p_layer;
+    }
+    inline bool operator!=(Layer& left_layer, const Layer* right_p_layer)
+    {
+        Layer *left_p_layer = &left_layer;
+        return left_p_layer != right_p_layer;
+    }
+
+
+    class Storage
     {
     private:
         int MAX_LAYER_SIZE;
