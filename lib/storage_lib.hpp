@@ -112,17 +112,6 @@ namespace gruut
         return os;
     }
 
-    inline bool operator==(Layer& left_layer, const Layer* right_p_layer)
-    {
-        Layer *left_p_layer = &left_layer;
-        return left_p_layer == right_p_layer;
-    }
-    inline bool operator!=(Layer& left_layer, const Layer* right_p_layer)
-    {
-        Layer *left_p_layer = &left_layer;
-        return left_p_layer != right_p_layer;
-    }
-
 
     class Storage
     {
