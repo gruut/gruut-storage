@@ -223,9 +223,9 @@ namespace gruut
                 uint path = (uint) stoul(item.second[PATH]);
 
                 m_tree.addNode(path, data);
-                m_tree.printTreePostOrder();
             }
 
+            m_tree.printTreePostOrder();
         }
         void destroyDB()
         {
@@ -243,7 +243,6 @@ namespace gruut
             readConfig();
             setupDB();
             setupMerkleTree();
-            exit(1);
         }
         ~Storage()
         {
@@ -328,7 +327,12 @@ namespace gruut
 
             if(m_layer.empty())
             {
-                m_current_layer.m_layer_tree = m_tree;    // TODO: deep copy between MerkleTree
+                cout << "m_layer is empty" << endl;
+                m_current_layer.m_layer_tree = m_tree;
+                cout << "========= m_tree =========" << endl;
+                m_tree.printTreePostOrder();
+                cout << "========= m_current_layer.m_layer_tree =========" << endl;
+                m_current_layer.m_layer_tree.printTreePostOrder();
             }
             else
             {

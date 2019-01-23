@@ -264,22 +264,29 @@ namespace gruut {
 
             return ret;
         }
-        void visit(MerkleNode *node) {
+        void visit(MerkleNode *node, bool isPrint) {
             string str_dir = !_debug_dir ? "Left" : "Right";
             if (!node->isDummy()) {
-                printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
-                printf("[uid %-3d] path: %s, suffix_len: %d,  hash_value: %s\n", node->getDebugUid(), intToBin(node->getDebugPath()), node->getSuffix(), valueToStr(node->getValue()).c_str());
+                if (isPrint) {
+                    printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
+                    printf("[uid %-3d] path: %s, suffix: %d,  hash_value: %s\n", node->getDebugUid(),
+                           intToBin(node->getDebugPath()), node->getSuffix(), valueToStr(node->getValue()).c_str());
+                }
+                stk.push(node);
             }
             _debug_depth--;
         }
         // tree post-order 순회 재귀함수
-        void postOrder(MerkleNode *node) {
-            _debug_depth++;
-            string str_dir = !_debug_dir ? "Left" : "Right";
-            printf("%s[depth %3d] %s\n", _debug_str_depth.substr(0, _debug_depth*2).c_str(), _debug_depth, str_dir.c_str());
-            if (node->getLeft() != nullptr) { _debug_dir = false; postOrder(node->getLeft()); }
-            if (node->getRight() != nullptr) { _debug_dir = true; postOrder(node->getRight()); }
-            visit(node);
+        void postOrder(MerkleNode *node, bool isPrint=true) {
+            if(isPrint) {
+                _debug_depth++;
+                string str_dir = (!_debug_dir) ? "Left" : "Right";
+                printf("%s[depth %3d] %s\n", _debug_str_depth.substr(0, _debug_depth * 2).c_str(), _debug_depth,
+                       str_dir.c_str());
+            }
+            if (node->getLeft() != nullptr) { _debug_dir = false; postOrder(node->getLeft(), isPrint); }
+            if (node->getRight() != nullptr) { _debug_dir = true; postOrder(node->getRight(), isPrint); }
+            visit(node, isPrint);
         }
 
     public:
@@ -526,23 +533,35 @@ namespace gruut {
         }
 
         // Debugging
-        void printTreePostOrder() {
-            ullint size = getSize();
-            printf("*********** print tree data by using post-order traversal... ************\n\n");
-            printf("node size: %lld\n\n", getSize());
-            if (size == 0) {
-                printf("there is nothing to printing!!\n\n");
-                return;
+        void printTreePostOrder(bool isPrint=true) {
+            if(isPrint) {
+                ullint size = getSize();
+                printf("*********** print tree data by using post-order traversal... ************\n\n");
+                printf("node size: %lld\n\n", getSize());
+                if (size == 0) {
+                    printf("there is nothing to printing!!\n\n");
+                    return;
+                }
+                _debug_depth = -1;
+                _debug_dir = false;
+                _debug_str_depth = _debug_str_dir = "";
+                for (int i = 0; i < _TREE_DEPTH * 2; ++i) {
+                    _debug_str_depth += " ";
+                    _debug_str_dir += "\t";
+                }
             }
-            _debug_depth = -1;
-            _debug_dir = false;
-            _debug_str_depth = _debug_str_dir = "";
-            for(int i = 0; i < _TREE_DEPTH*2; ++i) {
-                _debug_str_depth += " ";
-                _debug_str_dir += "\t";
+
+            while (!stk.empty()) {
+                stk.pop();
             }
-            postOrder(root);
-            printf("*********** finish traversal ***********\n");
+
+            cout<<"print isPrint: " <<isPrint<<endl;
+            postOrder(root, isPrint);
+
+            if(isPrint) {
+                printf("*********** finish traversal ***********\n");
+            }
+
         }
 
         // setter
@@ -553,11 +572,29 @@ namespace gruut {
         vector<uint8_t> getRootValue()   { return root->getValue(); }
         string getRootValueStr()   { return valueToStr(root->getValue()); }
         MerkleNode* getRoot()   { return root; }
+        stack<MerkleNode *> getStack() { return stk; }
 
         void clear()
         {
             root = new MerkleNode();
             m_size = 0;
+        }
+
+        void operator=(MerkleTree &rhs_tree)
+        {
+            cout << "assign overloading" << endl;
+            rhs_tree.printTreePostOrder(false);
+            stack<MerkleNode *> rhs_stk = rhs_tree.getStack();
+
+            cout << "stack size: " << rhs_stk.size() << endl;
+            while(!rhs_stk.empty())
+            {
+                MerkleNode *node = new MerkleNode();
+                //node = stk.top();
+                node->overwriteNode(rhs_stk.top());
+                addNode( node->getDebugPath(), node );
+                rhs_stk.pop();
+            }
         }
     };
 }
