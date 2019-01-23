@@ -22,6 +22,8 @@ using json = nlohmann::json;
 
 typedef unsigned int uint;
 
+enum {USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
+
 namespace gruut
 {
     // Smart contract 로 부터(?) 전달받은 transaction 들을(블록) 저장해놓는 Block 클래스
@@ -62,21 +64,56 @@ namespace gruut
             var_type = type;
             var_name = name;
         }
+        bool operator<(const Key& key) const
+        {
+            int user_id_cmp = this->user_id.compare(key.user_id);
+            if(user_id_cmp == 0)
+            {
+                int var_type_cmp = this->var_type.compare(key.var_type);
+                if(var_type_cmp == 0)
+                {
+                    int var_name_cmp = this->var_name.compare(key.var_name);
+                    return var_name_cmp < 0;
+                }
+                return var_type_cmp < 0;
+            }
+            return user_id_cmp < 0;
+        }
+        friend ostream& operator<<(ostream& os, Key& key);
     };
+    ostream& operator<<(ostream& os, Key& key)
+    {
+        os << key.user_id << ", " << key.var_type << ", " << key.var_name;
+        return os;
+    }
+
     // Layer 클래스에 map 변수를 위한 value
     class Value
     {
     public:
         string var_value;
         uint path;
+        bool isDeleted;
 
-        Value(string value, uint _path)
+        Value()
+        {
+            var_value = "";
+            path = 0;
+            bool isDeleted = false;
+        }
+        Value(string value, uint _path, bool del=false)
         {
             var_value = value;
             path = _path;
+            isDeleted = del;
         }
+        friend ostream& operator<<(ostream& os, Value& value);
     };
-
+    ostream& operator<<(ostream& os, Value& value)
+    {
+        os << value.var_value << ", " << value.path;
+        return os;
+    }
 
 
     // Storage 클래스에서 rollback 구현을 위해 갖고 있는 Layer 클래스
@@ -87,7 +124,7 @@ namespace gruut
     public:
         vector<json> transaction;
         MerkleTree m_layer_tree;
-        map<Key, Value> m_temporary_data;   // 레이어가 갖고있는 임시 데이터. MAX_LAYER_SIZE가 넘으면 DB에 반영됨.
+        map<Key, Value> m_temporary_data;   // 레이어가 갖고있는 임시 데이터. MAX_LAYER_SIZE가 넘으면 DB에 반영될 데이터임.
 
         Layer()
         {
@@ -95,7 +132,17 @@ namespace gruut
         }
         Layer(Block block)
         {
-
+            cout << "Layer constructor" << endl;
+            for(auto transaction: block.m_transaction)
+            {
+                cout << transaction << endl;
+            }
+        }
+        void clear()
+        {
+            transaction.clear();
+            m_layer_tree.clear();
+            m_temporary_data.clear();
         }
         friend ostream& operator<<(ostream& os, Layer& layer);
     };
@@ -165,7 +212,20 @@ namespace gruut
                 for(auto column: item.second)
                     printf("%15s\t", column.c_str());
                 printf("\n");
+
+
+                test_data data;
+                data.record_id = item.first;
+                data.user_id = item.second[USER_ID];
+                data.var_type = item.second[VAR_TYPE];
+                data.var_name = item.second[VAR_NAME];
+                data.var_value = item.second[VAR_VALUE];
+                uint path = (uint) stoul(item.second[PATH]);
+
+                m_tree.addNode(path, data);
+                m_tree.printTreePostOrder();
             }
+
         }
         void destroyDB()
         {
@@ -183,6 +243,7 @@ namespace gruut
             readConfig();
             setupDB();
             setupMerkleTree();
+            exit(1);
         }
         ~Storage()
         {
@@ -252,138 +313,202 @@ namespace gruut
             // m_tree.setTree(front_layer.m_layer_tree);
         }
 
-        void pushLayer(Layer layer)
-        {
-            // layer 처음 삽입 시, m_current_layer 에 아무것도 들어있지 않으므로 무시
-            if(layer!=nullptr)
-            {
-                if(m_layer.size() == MAX_LAYER_SIZE)
-                {
-                    applyFrontLayer();
-                }
-                m_layer.push_back(layer);
+        void pushLayer() {
+            // 꽉 차있으면 Front layer 를 DB 에 반영 시킨 다음 push back 수행
+            if (m_layer.size() == MAX_LAYER_SIZE) {
+                applyFrontLayer();
+            }
+            m_layer.push_back(m_current_layer);
+        }
 
+        // block 을 한줄씩 읽으며 데이터와 머클트리 갱신, m_current_layer 갱신
+        void parseBlockToLayer(Block block)
+        {
+            m_current_layer.clear();
+
+            if(m_layer.empty())
+            {
+                m_current_layer.m_layer_tree = m_tree;    // TODO: deep copy between MerkleTree
             }
             else
             {
-                cout<<"m_current_layer is empty!!"<< endl;
+                m_current_layer.m_layer_tree = m_layer[m_layer.size() - 1].m_layer_tree;
             }
-        }
-        Layer parseBlockToLayer(Block block)
-        {
-            return Layer(block);
-//
-//            json parse_result;
-//            json data;
-//            m_current_layer.clear();
-//            m_current_layer = json::array();
-//
-//            for(auto transaction: block["transactions"])
-//            {
-//                cout << transaction.dump(4) << endl;
-//                data.clear();
-//
-//                if (transaction["command"] == "send") {
-//                    string from_user_id = transaction["from_user_id"];
-//                    string from_var_name = transaction["from_var_name"];
-//                    string to_user_id = transaction["to_user_id"];
-//                    string to_var_name = transaction["to_var_name"];
-//
-//                    int from_depth = checkLayer(from_user_id, from_var_name);
-//                    int to_depth = checkLayer(to_user_id, to_var_name);
-//                    if (from_depth == -1) {
-//                        cout << "Send From, 0" << endl;     // ERROR (주는 사람이 존재하지 않음)
-//                    }
-//                    else if (to_depth == -1) {
-//                        cout << "Send To, 0" << endl;       // ERROR (받는 사람이 존재하지 않음)
-//                    }
-//                    else {
-//                        cout << "Send, 1" << endl;
-//                    }
-//                }
-//                else if (transaction["command"] == "add") {
-//                    string to_user_id = transaction["to_user_id"];
-//                    string to_var_name = transaction["to_var_name"];
-//
-//                    int depth = checkLayer(to_user_id, to_var_name);
-//                    // ERROR (업데이트하려는 행이 존재하지 않음)
-//                    if (depth == -1) {
-//                        cout << "Add, 0" << endl;
-//                    }
-//                    // DB에 존재
-//                    else if (depth == 0) {
-//                        int value = m_server.selectValueUsingUserIdVarName(to_user_id, to_var_name);
-//                        data["to_user_id"] = to_user_id;
-//                        data["to_var_name"] = to_var_name;
-//                        data["value"] = value + transaction.value("value", 0); // value + transaction["value"]
-//                        m_current_layer.push_back(data);
-//
-//                    }
-//                    // m_current_layer 또는 m_layer[depth] 에 존재, m_current_layer 업데이트
-//                    else {
-//                        json found_layer;
-//                        if (depth == 4) {
-//                            found_layer = m_current_layer;
-//                        }
-//                        else {
-//                            found_layer = m_layer[depth];
-//                        }
-//                        for (auto k: found_layer) {
-//                            if (k["user_id"] == to_user_id && k["var_name"] == to_var_name) {
-//                                data["user_id"] = to_user_id;
-//                                data["var_name"] = to_var_name;
-//                                data["value"] = k.value("value", 0) + transaction.value("value", 0);
-//
-//                                m_current_layer.update(data);
-//                                break;
-//                            }
-//                        }
-//                    }
-//                }
-//                else if (transaction["command"] == "new") {
-//                    string user_id = transaction["user_id"];
-//                    string var_name = transaction["var_name"];
-//
-//                    int depth = checkLayer(user_id, var_name);
-//                    if (depth == -1) {
-//                        cout << "New, 0" << endl << endl;
-//                    }
-//                    else {
-//                        cout << "New, 1" << endl;   // ERROR (새로 넣으려는 행이 이미 존재)
-//                    }
-//                }
-//                else {
-//                        cout << "[ERROR] storage::parseBlock transaction[\"command\"] parameter error" << endl;
-//                }
-//            }
-//
-//            return parse_result;
-        }
-        // current 레이어부터 데이터를 살펴보며 내려가고, 존재하면 존재하는 레이어 층을 반환함.
-        // 레이어에 없으면 마지막으로 DB를 살펴본 뒤, 존재하면 0, 존재하지 않으면 -1 반환함.
-        int checkLayer(string user_id, string var_name)
-        {
-            int depth = 4;
 
-            depth = m_layer.size();
-            for(auto layer = m_layer.crbegin(); layer != m_layer.crend(); layer++)
+            int res;
+            Value value;
+            cout << "parseBlockToLayer function..." << endl;
+            for(auto transaction: block.m_transaction)
             {
-                for (auto transaction: layer->transaction) {
-                    // 해당 레이어에 찾는 데이터가 있는지 체크
+                cout << transaction << endl;
+                if(transaction["command"] == "add")
+                {
+                    res = addCommand(transaction, value);
                 }
-                depth--;
+                else if (transaction["command"] == "send")
+                {
+                    res = sendCommand(transaction);
+
+                }
+                else if (transaction["command"] == "new")
+                {
+                    res = newCommand(transaction);
+                }
+                else if (transaction["command"] == "del")
+                {
+                    res = delCommand(transaction);
+                }
+                else
+                {
+                    cout << "[ERROR] Storage::parseBlockToLayer - can't analyze transaction - " << transaction << endl;
+                    continue;
+                }
+
+                // command 성공 시
+                if (!res)
+                {
+
+                }
             }
-            if (depth == 0) {
-                // DB에 데이터 있음
-                if ( !m_server.checkUserIdVarName(&user_id, &var_name) ) {
-                    depth = 0;
-                }
-                else {  // 데이터 없음
-                    depth = -1;
+
+//            m_current_layer.m_layer_tree;
+//            m_current_layer.m_temporary_data;
+//            m_current_layer.transaction;
+
+        }
+
+
+        int addCommand(json transaction, Value &val)
+        {
+            string to_user_id   = transaction["to_user_id"];
+            string to_var_type  = transaction["to_var_type"];
+            string to_var_name  = transaction["to_var_name"];
+            int value = transaction["value"];
+
+            Key key(to_user_id, to_var_type, to_var_name);
+            int depth = checkLayer(key);
+
+            if (depth == -2) {
+                cout << "[ERROR] Storage::addCommand() - Can't find data" << endl;
+                return 1;
+            }
+            else if (depth == -1) {
+                // DB 연결해서 데이터 읽어온 뒤, add 명령어 반영한 데이터를 m_current_layer 에  저장
+                cout << key << " in the DB" << endl;
+                pair< int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(to_user_id, to_var_type, to_var_name);
+                val.var_value = data.second[VAR_VALUE];
+                val.path = (uint) stoul(data.second[PATH]);
+                val.isDeleted = false;
+
+                // Q. add 명령어이면 무조건 var_value 는 정수형인가?
+                val.var_value = to_string( stoi(val.var_value) + value );
+
+
+                test_data modified_data;
+                modified_data.record_id = data.first;
+                modified_data.user_id   = data.second[USER_ID];
+                modified_data.var_type   = data.second[VAR_TYPE];
+                modified_data.var_name   = data.second[VAR_NAME];
+                modified_data.var_value  = val.var_value;
+
+                m_current_layer.m_layer_tree.modifyNode( val.path, modified_data ); // TODO: m_layer_tree 가 이전 레이어의 m_layer_tree 혹은, DB에서 불러온 값으로 설정된 m_tree와 같은 값을 가지고 있어야 함
+                m_current_layer.m_temporary_data.insert( make_pair(key, val) );
+                m_current_layer.transaction.push_back(transaction);
+            }
+            else {
+                // m_layer[depth] 에 있는 데이터를 읽어온 뒤, add 명령어 반영한 데이터를 m_current_layer 에 저장
+                cout << key << " in the m_layer[" << depth << "]" << endl;
+                map<Key, Value>::iterator it;
+
+                it = m_layer[depth].m_temporary_data.find(key);
+                val = it->second;
+
+                val.var_value = to_string( stoi(val.var_value) + value );
+
+                /*
+                test_data modified_data;
+                modified_data.record_id = data.first;               // TODO: m_temporary_data 의 Key 에 record_id 추가???
+                modified_data.user_id   = data.second[USER_ID];
+                modified_data.var_type   = data.second[VAR_TYPE];
+                modified_data.var_name   = data.second[VAR_NAME];
+                modified_data.var_value  = stoi( data.second[VAR_VALUE] );
+
+                m_current_layer.m_layer_tree.modifyNode(val.path, );
+                m_current_layer.m_temporary_data.insert( make_pair(key, val) );
+                 */
+            }
+            return 0;
+        }
+        int sendCommand(json transaction)
+        {
+            string to_user_id   = transaction["to_user_id"];
+            string to_var_type  = transaction["to_var_type"];
+            string to_var_name  = transaction["to_var_name"];
+            string from_user_id = transaction["from_user_id"];
+            string from_var_type  = transaction["to_var_type"];
+            string from_var_name= transaction["from_var_name"];
+            int value = transaction["value"];
+
+            Key to_key(to_user_id, to_var_type, to_var_name);
+            Key from_key(from_user_id, from_var_type, from_var_name);
+
+            int to_depth = checkLayer(to_key);
+            int from_depth = checkLayer(from_key);
+
+            return 0;
+        }
+        int newCommand(json transaction)
+        {
+            string user_id = transaction["user_id"];
+            string var_type = transaction["var_type"];
+            string var_name = transaction["var_name"];
+            string value = transaction["var_value"];
+
+            Key key(user_id, var_type, var_name);
+
+            int depth = checkLayer(key);
+
+            if(depth == -2) {
+                // new_layer 의 map 변수에 새로운 데이터 삽입
+            }
+            else {
+                cout << "[ERROR] Storage::newCommand() - Data already exist" << endl;
+                return 1;
+            }
+
+            return 0;
+        }
+        int delCommand(json transaction)
+        {
+
+            return 0;
+        }
+
+
+        // 현재 레이어부터 시작해서, 윗 레이어부터 살펴보며 데이터가 존재하면 존재하는 레이어 층을 반환함.
+        // 레이어에 없으면 마지막으로 DB를 살펴본 뒤, 존재하면 -1, 존재하지 않으면 -2 반환함.
+        int checkLayer(Key key)
+        {
+            int depth = m_layer.size() - 1;
+
+            map<Key, Value>::iterator it;
+
+            for(; depth >= 0; depth--)
+            {
+                it = m_layer[depth].m_temporary_data.find(key);
+                if (it != m_layer[depth].m_temporary_data.end())
+                    break;
+
+            }
+            if (depth == -1) {
+                // DB에 데이터 없음
+                if ( m_server.checkUserIdVarName(&key.user_id, &key.var_name) ) {
+                    depth = -2;
                 }
             }
             return depth;
         }
+
 
         void testStorage()
         {
@@ -402,8 +527,8 @@ namespace gruut
         }
         void testForward(Block block)
         {
-            pushLayer(m_current_layer);
-            m_current_layer = parseBlockToLayer(block);
+            parseBlockToLayer(block);
+            pushLayer();
         }
         void testBackward(int back_cnt)
         {

@@ -261,6 +261,23 @@ namespace gruut {
             mysql_free_result(res);
             return 0;
         }
+        pair< int, vector<string> > selectAllUsingUserIdVarTypeVarName(string userId, string varType, string varName) {
+            query = "SELECT * FROM test WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName + "'";
+            pair< int, vector<string> > all;
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    all.first = stoi(row[0]);
+                    for(i=1; i<columns; i++) {
+                        all.second.push_back(row[i]);
+                        //printf("%15s\t", row[i]);
+                    }
+                    //printf("\n");
+                }
+            }
+            mysql_free_result(res);
+            return all;
+        }
 
         int selectValueUsingUserIdVarName(string userId, string varName) {
             int result = -1;
