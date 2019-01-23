@@ -16,7 +16,7 @@ using namespace std;
 
 // TODO: define 값 변경
 #define _TREE_DEPTH 16
-#define _SHA256_SPLIT 4
+#define _SHA256_SPLIT 15
 typedef unsigned int uint;
 typedef unsigned long long int ullint;
 
@@ -26,10 +26,10 @@ struct test_data {
     string user_id;
     string var_type;
     string var_name;
-    int var_value;
+    string var_value;
 };
 
-test_data null_data = { -1, "TEST", "TEST", "TEST", -1 };
+test_data null_data = { -1, "TEST", "TEST", "TEST", "TEST" };
 //////////////////////////////////////////////////
 
 string toHex(int num)
@@ -89,7 +89,7 @@ namespace gruut {
         //MerkleNode *m_next;
 
         void makeValue(test_data data) {
-            string key = to_string(data.record_id) + data.user_id + data.var_name + data.var_type + to_string(data.var_value);
+            string key = to_string(data.record_id) + data.user_id + data.var_name + data.var_type + data.var_value;
             makeValue(key);
         }
         void makeValue(string key) {
@@ -216,7 +216,7 @@ namespace gruut {
             tmp.user_id     = user_id;
             tmp.var_type    = "TEST";
             tmp.var_name    = var_name;
-            tmp.var_value   = -1;
+            tmp.var_value   = "TEST";
             uint path = makePath(tmp);
             printf("path: %u\n", path);
             return path;
@@ -268,14 +268,15 @@ namespace gruut {
             string str_dir = !_debug_dir ? "Left" : "Right";
             if (!node->isDummy()) {
                 printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
-                printf("[uid %-3d] path: %s, hash_value: %s\n", node->getDebugUid(), intToBin(node->getDebugPath()), valueToStr(node->getValue()).c_str());
+                printf("[uid %-3d] path: %s, suffix_len: %d,  hash_value: %s\n", node->getDebugUid(), intToBin(node->getDebugPath()), node->getSuffix(), valueToStr(node->getValue()).c_str());
             }
             _debug_depth--;
         }
         // tree post-order 순회 재귀함수
         void postOrder(MerkleNode *node) {
             _debug_depth++;
-            printf("%s[depth %3d]\n", _debug_str_depth.substr(0, _debug_depth*2).c_str(), _debug_depth);
+            string str_dir = !_debug_dir ? "Left" : "Right";
+            printf("%s[depth %3d] %s\n", _debug_str_depth.substr(0, _debug_depth*2).c_str(), _debug_depth, str_dir.c_str());
             if (node->getLeft() != nullptr) { _debug_dir = false; postOrder(node->getLeft()); }
             if (node->getRight() != nullptr) { _debug_dir = true; postOrder(node->getRight()); }
             visit(node);
@@ -553,6 +554,11 @@ namespace gruut {
         string getRootValueStr()   { return valueToStr(root->getValue()); }
         MerkleNode* getRoot()   { return root; }
 
+        void clear()
+        {
+            root = new MerkleNode();
+            m_size = 0;
+        }
     };
 }
 
