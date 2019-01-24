@@ -13,7 +13,7 @@
         {"command": "add", "to_user_id": "mizno", "to_var_type": "coin", "to_var_name": "gru", "value": 2000},
         {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": 2000},
         {"command": "new", "user_id": "kjh", "var_type": "string", "var_name": "user_name", "var_value": "jeonghyeon"},
-        {"command": "new", "user_id": "kjh", "var_type": "coin", "var_name": "btc", "var_value": "10"},
+        {"command": "new", "user_id": "kjh", "var_type": "coin", "var_name": "btc", "var_value": "-10"},
         {"command": "new", "user_id": "kjh", "var_type": "coin", "var_name": "gru", "var_value": "100000"}
       ]
     },

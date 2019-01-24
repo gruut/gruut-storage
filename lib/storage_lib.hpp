@@ -23,7 +23,7 @@ using json = nlohmann::json;
 typedef unsigned int uint;
 
 enum {USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
-enum {COIN_VALUE=-1, DATA_EXIST=-2};
+enum {SUCCESS=0, COIN_VALUE=-1, DATA_EXIST=-2};
 
 namespace gruut
 {
@@ -110,7 +110,7 @@ namespace gruut
     };
     ostream& operator<<(ostream& os, Value& value)
     {
-        os << value.var_value << ", " << value.path;
+        os << value.var_value << ", " << intToBin(value.path) << "(" << value.path << ")";
         return os;
     }
 
@@ -379,6 +379,7 @@ namespace gruut
 
 
         int addCommand(json transaction, Value &val) {
+            int status = SUCCESS;
             string to_user_id = transaction["to_user_id"];
             string to_var_type = transaction["to_var_type"];
             string to_var_name = transaction["to_var_name"];
@@ -423,7 +424,8 @@ namespace gruut
             val.var_value = to_string(stoi(val.var_value) + value);
 
             if (stoi(val.var_value) < 0) {
-                return COIN_VALUE;
+                val.var_value = to_string(stoi(val.var_value) - value);
+                status = COIN_VALUE;
             }
 
             //modified_data.record_id = data.first;
@@ -441,7 +443,7 @@ namespace gruut
             else
                 it->second.var_value = val.var_value;
 
-            return 0;
+            return status;
         }
         int sendCommand(json transaction)
         {
@@ -463,25 +465,33 @@ namespace gruut
         }
         int newCommand(json transaction)
         {
+            int status = SUCCESS;
             string user_id = transaction["user_id"];
             string var_type = transaction["var_type"];
             string var_name = transaction["var_name"];
             string value = transaction["var_value"];
 
-            Key key(user_id, var_type, var_name);
-
-            int depth = checkLayer(key);
-
-            if(depth == -2) {
-                // new_layer 의 map 변수에 새로운 데이터 삽입
-
+            if ( var_type == "coin" && stoi(value) < 0) {
+                cout << "[ERROR] Storage::newCommand() - Coin type can't minus value" << endl;
+                status = COIN_VALUE;
             }
             else {
-                cout << "[ERROR] Storage::newCommand() - Data already exist" << endl;
-                return DATA_EXIST;
+                Key key(user_id, var_type, var_name);
+
+                int depth = checkLayer(key);
+
+                if (depth == -2) {
+                    // new_layer 의 map 변수에 새로운 데이터 삽입
+                    Value val(value, m_tree.getRoot()->makePath(user_id, var_type, var_name));
+                    m_current_layer.m_temporary_data.insert(make_pair(key, val));
+                    cout << key << ", " << val << endl;
+                } else {
+                    cout << "[ERROR] Storage::newCommand() - Data already exist" << endl;
+                    status = DATA_EXIST;
+                }
             }
 
-            return 0;
+            return status;
         }
         int delCommand(json transaction)
         {
@@ -529,6 +539,8 @@ namespace gruut
             testForward(blocks[1]);
             testShow("mizno", "coin", "gru");
             testShow("mang", "coin", "gru");
+            testShow("kjh", "coin", "btc");
+            testShow("kjh", "coin", "gru");
             applyFrontLayer();
 //            testForward(blocks[2]);
 //            testShow("mizno", "coin", "gru");
@@ -586,7 +598,7 @@ namespace gruut
 
             if (!found)
             {
-                cout << "maybe data is in the DB..." << endl;
+                cout << "in the DB, or doesn't have data" << endl;
             }
         }
     };

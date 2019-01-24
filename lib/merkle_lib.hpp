@@ -50,6 +50,24 @@ string valueToStr(vector<uint8_t> value)
     return str;
 }
 
+// uint 값을 받아서 눈으로 볼 수 있게 binary string 으로 변환하는 함수
+char* intToBin(uint num) {
+    char *ret = new char(_SHA256_SPLIT + 2);
+
+    int pos = 0;
+    for (int i = _SHA256_SPLIT; i >= 0; --i) {
+        if ( (num & (1 << i)) == 0) {
+            ret[pos] = '0';
+        }
+        else {
+            ret[pos] = '1';
+        }
+        pos++;
+    }
+    ret[_SHA256_SPLIT + 1] = '\0';
+
+    return ret;
+}
 // Debugging
 vector<uint8_t> makeValueDebug(string key) {
     vector<uint8_t> ret;
@@ -112,7 +130,7 @@ namespace gruut {
         }
         uint makePath(test_data data) {
             //string key = to_string(data.record_id) + data.user_id + data.var_name;
-            cout<<"makePath"<<endl;
+            //cout<<"makePath"<<endl;
             string key = data.user_id + data.var_type + data.var_name;
             string value = sha256(key);
             value = value.substr(value.length() - _SHA256_SPLIT - 1, value.length());
@@ -230,7 +248,7 @@ namespace gruut {
             tmp.var_name    = var_name;
             tmp.var_value   = "0";
             uint path = makePath(tmp);
-            printf("path: %u\n", path);
+            //printf("path: %u\n", path);
             return path;
         }
 
@@ -258,24 +276,7 @@ namespace gruut {
         {
             return (path & (1 << pos)) != 0;
         }
-        // uint 값을 받아서 눈으로 볼 수 있게 binary string 으로 변환하는 함수
-        char* intToBin(uint num) {
-            char *ret = new char(_SHA256_SPLIT + 2);
 
-            int pos = 0;
-            for (int i = _SHA256_SPLIT; i >= 0; --i) {
-                if ( (num & (1 << i)) == 0) {
-                    ret[pos] = '0';
-                }
-                else {
-                    ret[pos] = '1';
-                }
-                pos++;
-            }
-            ret[_SHA256_SPLIT + 1] = '\0';
-
-            return ret;
-        }
         void visit(MerkleNode *node, bool isPrint) {
             string str_dir = !_debug_dir ? "Left" : "Right";
             if (!node->isDummy()) {
