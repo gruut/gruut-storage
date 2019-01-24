@@ -78,14 +78,14 @@ int main()
     g_storage.testStorage();
 
 //    gruut::MerkleNode test;
-//    test.makePath(1, "mizno", "user_name");
-//    test.makePath(2, "mizno", "bank_name");
-//    test.makePath(3, "mizno", "btc");
-//    test.makePath(4, "mizno", "gru");
-//    test.makePath(5, "mang", "user_name");
-//    test.makePath(6, "mang", "bank_name");
-//    test.makePath(7, "mang", "btc");
-//    test.makePath(8, "mang", "gru");
+//    test.makePath("mizno", "string", "user_name");
+//    test.makePath("mizno", "coin", "eth");
+//    test.makePath("mizno", "coin", "btc");
+//    test.makePath("mizno", "coin", "gru");
+//    test.makePath("mang", "string", "user_name");
+//    test.makePath("mang", "coin", "eth");
+//    test.makePath("mang", "coin", "btc");
+//    test.makePath("mang", "coin", "gru");
 
     return 0;
 }

@@ -3,7 +3,8 @@
     {
       "transactions": [
         {"command": "add", "to_user_id": "mizno", "to_var_type": "coin", "to_var_name": "gru", "value": 1000},
-        {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": -1000}
+        {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": -1000},
+        {"command": "add", "to_user_id": "mizno", "to_var_type": "coin", "to_var_name": "gru", "value": 1000}
       ]
     },
 

@@ -22,14 +22,15 @@ typedef unsigned long long int ullint;
 
 /////////////////// test data /////////////////////
 struct test_data {
-    int record_id;
+    //int record_id;
     string user_id;
     string var_type;
     string var_name;
     string var_value;
 };
 
-test_data null_data = { -1, "TEST", "TEST", "TEST", "TEST" };
+//test_data null_data = { -1, "TEST", "TEST", "TEST", "TEST" };
+test_data null_data = {"TEST", "TEST", "TEST", "TEST" };
 //////////////////////////////////////////////////
 
 string toHex(int num)
@@ -75,6 +76,12 @@ vector<uint8_t> getHash(string l_value, string r_value)
     return value;
 }
 
+ostream& operator<<(ostream &os, vector<uint8_t> &value)
+{
+    os << valueToStr(value);
+    return os;
+}
+
 namespace gruut {
     class MerkleNode {
     private:
@@ -89,7 +96,8 @@ namespace gruut {
         //MerkleNode *m_next;
 
         void makeValue(test_data data) {
-            string key = to_string(data.record_id) + data.user_id + data.var_name + data.var_type + data.var_value;
+            //string key = to_string(data.record_id) + data.user_id + data.var_name + data.var_type + data.var_value;
+            string key = data.user_id + data.var_type + data.var_name  + data.var_value;
             makeValue(key);
         }
         void makeValue(string key) {
@@ -103,7 +111,9 @@ namespace gruut {
             }
         }
         uint makePath(test_data data) {
-            string key = to_string(data.record_id) + data.user_id + data.var_name;
+            //string key = to_string(data.record_id) + data.user_id + data.var_name;
+            cout<<"makePath"<<endl;
+            string key = data.user_id + data.var_type + data.var_name;
             string value = sha256(key);
             value = value.substr(value.length() - _SHA256_SPLIT - 1, value.length());
             uint path = (uint) strtoul(value.c_str(), 0, 16);
@@ -120,9 +130,10 @@ namespace gruut {
             //m_next = nullptr;
             m_suffix = 0;
             makeValue(data);
+
             //m_path = makePath(data);
             m_debug_path = 0;
-            m_debug_uid = data.record_id;
+            //m_debug_uid = data.record_id;
             m_suffix_len = -1;
         }
 
@@ -166,8 +177,8 @@ namespace gruut {
             m_suffix_len++;
         }
 
-        bool isDummy()  { return (m_debug_uid == -1); }
-        bool isLeaf()   { return ((m_debug_uid != -1) && (m_suffix_len == 0)); }
+        bool isDummy()  { return (m_debug_path == 0); }
+        //bool isLeaf()   { return ((m_debug_uid != -1) && (m_suffix_len == 0)); }
 
         /* setter */
         void setLeft(MerkleNode *node)  { m_left  = node; }
@@ -182,7 +193,7 @@ namespace gruut {
         void setDebugPath(uint _path)        { m_debug_path  = _path; }
         void setNodeInfo(test_data data)
         {
-            m_debug_uid = data.record_id;
+            //m_debug_uid = data.record_id;
             makeValue(data);
         }
         void overwriteNode(MerkleNode *node)
@@ -190,7 +201,7 @@ namespace gruut {
             m_left = nullptr;
             m_right = nullptr;
             m_value = node->getValue();
-            m_debug_uid = node->getDebugUid();
+            //m_debug_uid = node->getDebugUid();
             m_suffix = node->getSuffix();
             m_debug_path = node->getDebugPath();
             m_suffix_len = node->getSuffixLen();
@@ -204,19 +215,20 @@ namespace gruut {
         uint getSuffix()        { return m_suffix; }
         vector<uint8_t> getValue()       { return m_value; }
         uint getDebugPath()     { return m_debug_path; }
-        int getDebugUid()       { return m_debug_uid; }
+        //int getDebugUid()       { return m_debug_uid; }
         int getSuffixLen()      { return m_suffix_len; }
         //MerkleNode* getNext() { return m_next; }
 
         // for Debugging (DB에 path 값 초기 세팅용도)
-        uint makePath(int record_id, string user_id, string var_name)
+        //uint makePath(int record_id, string user_id, string var_name)
+        uint makePath(string user_id, string var_type, string var_name)
         {
             test_data tmp;
-            tmp.record_id   = record_id;
+            //tmp.record_id   = record_id;
             tmp.user_id     = user_id;
-            tmp.var_type    = "TEST";
+            tmp.var_type    = var_type;
             tmp.var_name    = var_name;
-            tmp.var_value   = "TEST";
+            tmp.var_value   = "0";
             uint path = makePath(tmp);
             printf("path: %u\n", path);
             return path;
@@ -269,8 +281,8 @@ namespace gruut {
             if (!node->isDummy()) {
                 if (isPrint) {
                     printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
-                    printf("[uid %-3d] path: %s, suffix: %d,  hash_value: %s\n", node->getDebugUid(),
-                           intToBin(node->getDebugPath()), node->getSuffix(), valueToStr(node->getValue()).c_str());
+                    printf("[path: %s] suffix: %d,  hash_value: %s\n",
+                            intToBin(node->getDebugPath()), node->getSuffix(), valueToStr(node->getValue()).c_str());
                 }
                 stk.push(node);
             }
@@ -321,7 +333,6 @@ namespace gruut {
                     collision = true;
                     break;
                 }
-
                 // 노드 삽입 후 해당 노드에서 머클 루트까지 re-hashing 용도
                 stk.push(node);
 
