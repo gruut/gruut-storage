@@ -323,6 +323,7 @@ namespace gruut {
             bool collision = false;
             bool dir;
             int dir_pos = _TREE_DEPTH - 1;
+            int depth = 1;
 
             while(!stk.empty()) stk.pop();      // 스택 clear
 
@@ -361,6 +362,7 @@ namespace gruut {
                 }
 
                 dir_pos--;
+                depth++;
             }
             // case: 기존 노드와 충돌 났을 경우 -> 기존 노드와 새 노드 모두 적절한 위치에 삽입 필요
             // prev_node : 부모 노드, dummy : 충돌난 곳에 삽입할 더미 노드
@@ -385,6 +387,11 @@ namespace gruut {
 
                 // 경로가 같은 횟수만큼 경로를 따라서 dummy 노드 생성 및 연결
                 while(true) {
+                    if(depth>_TREE_DEPTH) {
+                        cout << "MerkleTree::addNode() collision unsolved." << endl;
+                        break;
+                    }
+
                     if (getDirectionOf(new_path, dir_pos) != getDirectionOf(old_path, dir_pos)) {
                         break;
                     }
@@ -401,6 +408,7 @@ namespace gruut {
                     }
 
                     dir_pos--;
+                    depth++;
                 }
                 // 경로가 다른 위치에서 기존 노드, 새 노드 각각 삽입
                 if (!getDirectionOf(new_path, dir_pos)) {
@@ -480,6 +488,7 @@ namespace gruut {
 
                 parent = stk.top(); stk.pop();
             }
+            m_size--;
         }
 
         MerkleNode* getMerkleNode(uint _path)
@@ -585,28 +594,7 @@ namespace gruut {
         MerkleNode* getRoot()   { return root; }
         stack<MerkleNode *> getStack() { return stk; }
 
-        void clear()
-        {
-            root = new MerkleNode();
-            m_size = 0;
-        }
 
-        void operator=(MerkleTree &rhs_tree)
-        {
-            cout << "assign overloading" << endl;
-            rhs_tree.printTreePostOrder(false);
-            stack<MerkleNode *> rhs_stk = rhs_tree.getStack();
-
-            cout << "stack size: " << rhs_stk.size() << endl;
-            while(!rhs_stk.empty())
-            {
-                MerkleNode *node = new MerkleNode();
-                //node = stk.top();
-                node->overwriteNode(rhs_stk.top());
-                addNode( node->getDebugPath(), node );
-                rhs_stk.pop();
-            }
-        }
     };
 }
 

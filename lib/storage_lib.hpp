@@ -23,6 +23,7 @@ using json = nlohmann::json;
 typedef unsigned int uint;
 
 enum {USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
+enum {COIN_VALUE=-1, DATA_EXIST=-2};
 
 namespace gruut
 {
@@ -77,9 +78,9 @@ namespace gruut
             }
             return user_id_cmp < 0;
         }
-        friend ostream& operator<<(ostream& os, Key& key);
+        friend ostream& operator<< (ostream& os, Key& key);
     };
-    ostream& operator<<(ostream& os, Key& key)
+    ostream& operator<< (ostream& os, Key& key)
     {
         os << key.user_id << ", " << key.var_type << ", " << key.var_name;
         return os;
@@ -121,7 +122,6 @@ namespace gruut
     {
     public:
         vector<json> transaction;
-        MerkleTree m_layer_tree;
         map<Key, Value> m_temporary_data;   // 레이어가 갖고있는 임시 데이터. MAX_LAYER_SIZE가 넘으면 DB에 반영될 데이터임.
 
         Layer()
@@ -139,7 +139,6 @@ namespace gruut
         void clear()
         {
             transaction.clear();
-            m_layer_tree.clear();
             m_temporary_data.clear();
         }
         friend ostream& operator<<(ostream& os, Layer& layer);
@@ -148,11 +147,16 @@ namespace gruut
     ostream& operator<<(ostream& os, Layer& layer)
     {
         int t_num = 0;
-        os << "Root value: " << layer.m_layer_tree.getRootValueStr() << '\n';
+        os << "Transaction..." << endl;
         for(auto transaction: layer.transaction)
         {
             os << "Transaction #" << t_num << " \t" << transaction << '\n';
             t_num++;
+        }
+        os << "Temporary_data..." << endl;
+        for(auto data: layer.m_temporary_data)
+        {
+            os << "Key: " << data.first.user_id << ", " << data.first.var_type << ", " << data.first.var_name << ", Value: " << data.second << endl;
         }
         return os;
     }
@@ -307,6 +311,11 @@ namespace gruut
             // Layer front_layer = popFrontLayer();
             // m_server.setDataByLayer(front_layer);
             // m_tree.setTree(front_layer.m_layer_tree);
+            Layer layer = popFrontLayer();
+            for(auto data: layer.m_temporary_data)
+            {
+                cout << data.first.user_id << ", " << data.second << endl;
+            }
         }
 
         void pushLayer() {
@@ -321,20 +330,6 @@ namespace gruut
         void parseBlockToLayer(Block block)
         {
             m_current_layer.clear();
-
-            if(m_layer.empty())
-            {
-                cout << "m_layer is empty" << endl;
-                m_current_layer.m_layer_tree = m_tree;
-                cout << "========= m_tree =========" << endl;
-                m_tree.printTreePostOrder();
-                cout << "========= m_current_layer.m_layer_tree =========" << endl;
-                m_current_layer.m_layer_tree.printTreePostOrder();
-            }
-            else
-            {
-                m_current_layer.m_layer_tree = m_layer[m_layer.size() - 1].m_layer_tree;
-            }
 
             int res;
             Value value;
@@ -368,7 +363,11 @@ namespace gruut
                 // command 성공 시
                 if (!res)
                 {
-
+                    cout << transaction << " Success." << endl;
+                }
+                else if (res == COIN_VALUE)
+                {
+                    cout << transaction << " Failed. command make value under zero." << endl;
                 }
             }
 
@@ -423,13 +422,17 @@ namespace gruut
             // Q. add 명령어이면 무조건 var_value 는 정수형인가?
             val.var_value = to_string(stoi(val.var_value) + value);
 
+            if (stoi(val.var_value) < 0) {
+                return COIN_VALUE;
+            }
+
             //modified_data.record_id = data.first;
             modified_data.user_id = key.user_id;
             modified_data.var_type = key.var_type;
             modified_data.var_name = key.var_name;
             modified_data.var_value = val.var_value;
 
-            m_current_layer.m_layer_tree.modifyNode(val.path, modified_data);   // merkle tree 의 노드 수정
+            m_tree.modifyNode(val.path, modified_data);   // merkle tree 의 노드 수정
             m_current_layer.transaction.push_back(transaction);                 // 반영된 transaction 보관
             // it == end() 이면 DB 에서 처음으로 불러온 데이터인 경우이므로 insert
             if(it == m_current_layer.m_temporary_data.end())
@@ -471,10 +474,11 @@ namespace gruut
 
             if(depth == -2) {
                 // new_layer 의 map 변수에 새로운 데이터 삽입
+
             }
             else {
                 cout << "[ERROR] Storage::newCommand() - Data already exist" << endl;
-                return 1;
+                return DATA_EXIST;
             }
 
             return 0;
@@ -525,6 +529,7 @@ namespace gruut
             testForward(blocks[1]);
             testShow("mizno", "coin", "gru");
             testShow("mang", "coin", "gru");
+            applyFrontLayer();
 //            testForward(blocks[2]);
 //            testShow("mizno", "coin", "gru");
 //            testShow("kjh", "coin", "gru");
