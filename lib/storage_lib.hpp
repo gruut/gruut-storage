@@ -313,7 +313,6 @@ namespace gruut
             if (!m_layer.empty()) {
                 back_layer = m_layer.back();
                 m_layer.pop_back();
-                // TODO: back layer를 이용해서 머클트리 갱신
             }
             else {
                 cout << "[ERROR] storage::m_layer variable is empty!\n";
@@ -323,19 +322,39 @@ namespace gruut
         }
         void applyFrontLayer()
         {
-            // Layer front_layer = popFrontLayer();
-            // m_server.setDataByLayer(front_layer);
-            // m_tree.setTree(front_layer.m_layer_tree);
+            cout << "------------apply Front Layer--------------" << endl;
+            Layer front_layer = popFrontLayer();
+            for(auto data: front_layer.m_temporary_data)
+            {
+                Key key = data.first;
+                Value value = data.second;
 
-            //Layer layer = popFrontLayer();
-            cout << "Layer size : " << m_layer.size() << endl;
-            for(auto layer: m_layer) {
-                cout << "applyFront, Layer" << endl;
-                for (auto data: layer.m_temporary_data) {
-                    cout << "\t\tData - ";
-                    cout << data.first << ", " << data.second << endl;
+                cout << key << ", " << value << endl;
+
+                if (value.isDeleted) {
+                    m_server.deleteData( key.user_id, key.var_type, key.var_name );
+                    // 삭제 진행
+                }
+                else {
+
+                    if ( !m_server.checkUserIdVarTypeVarName(&key.user_id, &key.var_type, &key.var_name) ) { // DB 에 데이터 존재 -> update 수행
+                        m_server.update( key.user_id, key.var_type, key.var_name, value.var_value );
+                    }
+                    else {  // DB 에 데이터 없음 -> insert 수행
+                        m_server.insert( key.user_id, key.var_type, key.var_name, value.var_value, to_string(value.path) );
+                    }
                 }
             }
+
+            // layer 체크 코드
+//            cout << "Layer size : " << m_layer.size() << endl;
+//            for(auto layer: m_layer) {
+//                cout << "applyFront, Layer" << endl;
+//                for (auto data: layer.m_temporary_data) {
+//                    cout << "\t\tData - ";
+//                    cout << data.first << ", " << data.second << endl;
+//                }
+//            }
         }
 
         // block 을 한줄씩 읽으며 데이터와 머클트리 갱신, m_current_layer 갱신
@@ -440,25 +459,27 @@ namespace gruut
                     val.var_value = to_string(stoi(val.var_value) - value);
                     status = COIN_VALUE;
                 }
+                else {
+                    //modified_data.record_id = data.first;
+                    modified_data.user_id = key.user_id;
+                    modified_data.var_type = key.var_type;
+                    modified_data.var_name = key.var_name;
+                    modified_data.var_value = val.var_value;
 
-                //modified_data.record_id = data.first;
-                modified_data.user_id = key.user_id;
-                modified_data.var_type = key.var_type;
-                modified_data.var_name = key.var_name;
-                modified_data.var_value = val.var_value;
-
-                m_tree.modifyNode(val.path, modified_data);         // merkle tree 의 노드 수정
-                m_current_layer.transaction.push_back(transaction); // 반영된 transaction 보관
-                if (isCurrent)  // current layer 에 존재하던 데이터라면, current layer 의 데이터를 수정
-                    it->second.var_value = val.var_value;
-                else            // DB, m_layer[depth] 에 존재하던 데이터라면, current layer 에 수정된 데이터를 삽입
-                    m_current_layer.m_temporary_data.insert(make_pair(key, val));
+                    m_tree.modifyNode(val.path, modified_data);         // merkle tree 의 노드 수정
+                    m_current_layer.transaction.push_back(transaction); // 반영된 transaction 보관
+                    if (isCurrent)  // current layer 에 존재하던 데이터라면, current layer 의 데이터를 수정
+                        it->second.var_value = val.var_value;
+                    else            // DB, m_layer[depth] 에 존재하던 데이터라면, current layer 에 수정된 데이터를 삽입
+                        m_current_layer.m_temporary_data.insert(make_pair(key, val));
+                }
             }
 
             return status;
         }
         int sendCommand(json transaction)
         {
+            int status = SUCCESS;
             string to_user_id   = transaction["to_user_id"];
             string to_var_type  = transaction["to_var_type"];
             string to_var_name  = transaction["to_var_name"];
@@ -467,13 +488,108 @@ namespace gruut
             string from_var_name= transaction["from_var_name"];
             int value = transaction["value"];
 
+            // send 명령어로 - 값 전송이 올 수 있나??
+            if (value < 0) {
+                cout << "[ERROR] Storage::sendCommand() - Value is under zero" << endl;
+                return COIN_VALUE;
+            }
+
             Key to_key(to_user_id, to_var_type, to_var_name);
+            Value to_val;
+
             Key from_key(from_user_id, from_var_type, from_var_name);
+            Value from_val;
 
             int to_depth = checkLayer(to_key);
             int from_depth = checkLayer(from_key);
 
-            return 0;
+            if (to_depth == NO_DATA) {
+                cout << "[ERROR] Storage::sendCommand() - Can't find to_user data" << endl;
+                status = DATA_NOT_EXIST;
+            }
+            else if (from_depth == NO_DATA) {
+                cout << "[ERROR] Storage::sendCommand() - Can't find from_user data" << endl;
+                status = DATA_NOT_EXIST;
+            }
+            else {
+
+                /* 직접 하는것 보다, addCommand 에 예외처리가 잘 되어있으므로
+                 * from user 에 대해서 add 호출, to user 에 대해서 add 호출이 나을 것 같음
+                 * (코드도 깔끔해지므로...) */
+                json new_transaction;
+
+                // from 먼저
+                new_transaction["command"] = "add";
+                new_transaction["to_user_id"] = from_user_id;
+                new_transaction["to_var_type"] = from_var_type;
+                new_transaction["to_var_name"] =from_var_name;
+                new_transaction["value"] = -value;
+
+                status = addCommand(new_transaction, from_val);
+
+                if (!status) {
+                    // from 성공하고 나면 to 수행
+                    new_transaction["command"] = "add";
+                    new_transaction["to_user_id"] = to_user_id;
+                    new_transaction["to_var_type"] = to_var_type;
+                    new_transaction["to_var_name"] = to_var_name;
+                    new_transaction["value"] = value;
+
+                    status = addCommand(new_transaction, to_val);
+                }
+
+
+
+
+//                map<Key, Value>::iterator to_it;
+//                map<Key, Value>::iterator from_it;
+//
+//                // from user 데이터 획득
+//                if (from_depth == DB_DATA) {
+//                    pair< int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(from_user_id, from_var_type, from_var_name);
+//                    from_val.var_value = data.second[VAR_VALUE];
+//                    from_val.path = (uint) stoul(data.second[PATH]);
+//                    from_val.isDeleted = false;
+//                }
+//                else if (from_depth == CUR_DATA) {
+//                    from_it = m_current_layer.m_temporary_data.find(from_key);
+//                    from_val = from_it->second;
+//                }
+//                else {
+//                    from_it = m_layer[depth].m_temporary_data.find(from_key);
+//                    from_val = from_it->second;
+//                }
+//
+//                // to user 데이터 획득
+//                if (to_depth == DB_DATA) {
+//                    pair< int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(to_user_id, to_var_type, to_var_name);
+//                    to_val.var_value = data.second[VAR_VALUE];
+//                    to_val.path = (uint) stoul(data.second[PATH]);
+//                    to_val.isDeleted = false;
+//                }
+//                else if (to_depth == CUR_DATA) {
+//                    to_it = m_current_layer.m_temporary_data.find(to_key);
+//                    to_val = to_it->second;
+//                }
+//                else {
+//                    to_it = m_layer[depth].m_temporary_data.find(to_key);
+//                    to_val = to_it->second;
+//                }
+//
+//                // from user 데이터 체크
+//                // to user 는 음수가 될 수 없으므로 체크안함
+//                if (stoi(from_val.var_value) + value < 0) {
+//                    cout << "from user: " << from_user_id << " doesn't have enough value" << endl;
+//                    status = COIN_VALUE;
+//                }
+//                else {
+//
+//                }
+
+
+            }
+
+            return status;
         }
         int newCommand(json transaction)
         {
@@ -583,7 +699,7 @@ namespace gruut
             }
             if (depth == DB_DATA) {
                 // DB 체크
-                if ( m_server.checkUserIdVarName(&key.user_id, &key.var_name) ) {
+                if ( m_server.checkUserIdVarTypeVarName(&key.user_id, &key.var_type, &key.var_name) ) {
                     // DB 에도 없으면 -2 반환
                     depth = NO_DATA;
                 }
@@ -598,24 +714,29 @@ namespace gruut
         void testStorage()
         {
             testForward(blocks[0]);
-            applyFrontLayer();
+            //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("mang", "coin", "gru");
             testForward(blocks[1]);
-            applyFrontLayer();
+            //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("mang", "coin", "gru");
             //testShow("kjh", "coin", "btc");
             //testShow("kjh", "coin", "gru
             testForward(blocks[2]);
-            applyFrontLayer();
+            //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("kjh", "coin", "btc");
 //
-//            testBackward(1);
+//            testBackward();
 //            testShow("mizno", "coin", "gru");
-//            testBackward(1);
+//            testBackward();
 //            testShow("mizno", "coin", "gru");
+
+            testForward(blocks[3]);
+            //applyFrontLayer();
+            testForward(blocks[4]);
+            testForward(blocks[5]);
         }
         void testForward(Block block)
         {
@@ -623,11 +744,9 @@ namespace gruut
             pushLayer();
             m_current_layer.clear();
         }
-        void testBackward(int back_cnt)
+        void testBackward()
         {
-            while(back_cnt--) {
-                popBackLayer();
-            }
+            popBackLayer();
         }
         void testShow(string user_id, string var_type, string var_name)
         {

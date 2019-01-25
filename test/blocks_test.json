@@ -39,6 +39,13 @@
         {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": -3000},
         {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": 1000}
       ]
+    },
+
+    {
+      "transactions": [
+        {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": -3000},
+        {"command": "add", "to_user_id": "mang", "to_var_type": "coin", "to_var_name": "gru", "value": 1000}
+      ]
     }
   ]
 }
