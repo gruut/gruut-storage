@@ -22,8 +22,10 @@ using json = nlohmann::json;
 
 typedef unsigned int uint;
 
+#define _D_CUR_LAYER 4
 enum {USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
-enum {SUCCESS=0, COIN_VALUE=-1, DATA_EXIST=-2};
+enum {SUCCESS=0, COIN_VALUE=-1, DATA_DUPLICATE=-2, DATA_NOT_EXIST=-3};
+enum {NO_DATA=-2, DB_DATA=-1, CUR_DATA=_D_CUR_LAYER};
 
 namespace gruut
 {
@@ -85,6 +87,11 @@ namespace gruut
         os << key.user_id << ", " << key.var_type << ", " << key.var_name;
         return os;
     }
+    ostream& operator<< (ostream& os, const Key& key)
+    {
+        os << key.user_id << ", " << key.var_type << ", " << key.var_name;
+        return os;
+    }
 
     // Layer 클래스에 map 변수를 위한 value
     class Value
@@ -110,7 +117,7 @@ namespace gruut
     };
     ostream& operator<<(ostream& os, Value& value)
     {
-        os << value.var_value << ", " << intToBin(value.path) << "(" << value.path << ")";
+        os << value.var_value << ", " << intToBin(value.path) << "(" << value.path << ")" << ", isDeleted: " << value.isDeleted;
         return os;
     }
 
@@ -279,6 +286,14 @@ namespace gruut
 
         }
 
+        void pushLayer() {
+            // 꽉 차있으면 Front layer 를 DB 에 반영 시킨 다음 push back 수행
+            if (m_layer.size() == MAX_LAYER_SIZE) {
+                cout << "Layer size MAX... call applyFrontLayer()" << endl;
+                applyFrontLayer();
+            }
+            m_layer.push_back(m_current_layer);
+        }
         Layer popFrontLayer()
         {
             Layer front_layer;
@@ -311,26 +326,21 @@ namespace gruut
             // Layer front_layer = popFrontLayer();
             // m_server.setDataByLayer(front_layer);
             // m_tree.setTree(front_layer.m_layer_tree);
-            Layer layer = popFrontLayer();
-            for(auto data: layer.m_temporary_data)
-            {
-                cout << data.first.user_id << ", " << data.second << endl;
-            }
-        }
 
-        void pushLayer() {
-            // 꽉 차있으면 Front layer 를 DB 에 반영 시킨 다음 push back 수행
-            if (m_layer.size() == MAX_LAYER_SIZE) {
-                applyFrontLayer();
+            //Layer layer = popFrontLayer();
+            cout << "Layer size : " << m_layer.size() << endl;
+            for(auto layer: m_layer) {
+                cout << "applyFront, Layer" << endl;
+                for (auto data: layer.m_temporary_data) {
+                    cout << "\t\tData - ";
+                    cout << data.first << ", " << data.second << endl;
+                }
             }
-            m_layer.push_back(m_current_layer);
         }
 
         // block 을 한줄씩 읽으며 데이터와 머클트리 갱신, m_current_layer 갱신
         void parseBlockToLayer(Block block)
         {
-            m_current_layer.clear();
-
             int res;
             Value value;
             cout << "parseBlockToLayer function..." << endl;
@@ -384,64 +394,66 @@ namespace gruut
             string to_var_type = transaction["to_var_type"];
             string to_var_name = transaction["to_var_name"];
             int value = transaction["value"];
+            bool isCurrent = false;
 
             Key key(to_user_id, to_var_type, to_var_name);
-            map<Key, Value>::iterator it = m_current_layer.m_temporary_data.end();
+            map<Key, Value>::iterator it;
             int depth = checkLayer(key);
 
             test_data modified_data;
 
-            if (depth == -2) {
+            if (depth == NO_DATA) {
                 cout << "[ERROR] Storage::addCommand() - Can't find data" << endl;
-                return 1;
-            } else if (depth == -1) {
-                // DB 연결해서 데이터 읽어온 뒤, add 명령어 반영한 데이터를 m_current_layer 에  저장
-                cout << key << " in the DB" << endl;
-                pair<int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(to_user_id, to_var_type,
-                                                                                              to_var_name);
-                val.var_value = data.second[VAR_VALUE];
-                val.path = (uint) stoul(data.second[PATH]);
-                val.isDeleted = false;
-
-
-            } else if (depth == 4) {
-                // m_current_layer 에 있는 데이터를 읽어온 뒤, add 명령어 반영한 데이터를 다시 m_current_layer 에 저장
-                cout << key << " in the m_current_layer" << endl;
-
-                it = m_current_layer.m_temporary_data.find(key);
-                val = it->second;
-
-            } else {
-                // m_layer[depth] 에 있는 데이터를 읽어온 뒤, add 명령어 반영한 데이터를 m_current_layer 에 저장
-                cout << key << " in the m_layer[" << depth << "]" << endl;
-
-                it = m_layer[depth].m_temporary_data.find(key);
-                val = it->second;
-
+                status = DATA_NOT_EXIST;
             }
+            else {
+                if (depth == DB_DATA) {
+                    // DB 연결해서 데이터 읽어온 뒤, add 명령어 반영한 데이터를 m_current_layer 에  저장
+                    cout << key << " in the DB" << endl;
+                    pair<int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(to_user_id,
+                                                                                                  to_var_type,
+                                                                                                  to_var_name);
+                    val.var_value = data.second[VAR_VALUE];
+                    val.path = (uint) stoul(data.second[PATH]);
+                    val.isDeleted = false;
+                } else if (depth == CUR_DATA) {
+                    // m_current_layer 에 있는 데이터를 읽어온 뒤, add 명령어 반영한 데이터를 다시 m_current_layer 에 저장
+                    cout << key << " in the m_current_layer" << endl;
 
-            // Q. add 명령어이면 무조건 var_value 는 정수형인가?
-            val.var_value = to_string(stoi(val.var_value) + value);
+                    it = m_current_layer.m_temporary_data.find(key);
+                    val = it->second;
 
-            if (stoi(val.var_value) < 0) {
-                val.var_value = to_string(stoi(val.var_value) - value);
-                status = COIN_VALUE;
+                    isCurrent = true;
+
+                } else {
+                    // m_layer[depth] 에 있는 데이터를 읽어온 뒤, add 명령어 반영한 데이터를 m_current_layer 에 저장
+                    cout << key << " in the m_layer[" << depth << "]" << endl;
+
+                    it = m_layer[depth].m_temporary_data.find(key);
+                    val = it->second;
+
+                }
+                // Q. add 명령어이면 무조건 var_value 는 정수형인가?
+                val.var_value = to_string(stoi(val.var_value) + value);
+
+                if (stoi(val.var_value) < 0) {
+                    val.var_value = to_string(stoi(val.var_value) - value);
+                    status = COIN_VALUE;
+                }
+
+                //modified_data.record_id = data.first;
+                modified_data.user_id = key.user_id;
+                modified_data.var_type = key.var_type;
+                modified_data.var_name = key.var_name;
+                modified_data.var_value = val.var_value;
+
+                m_tree.modifyNode(val.path, modified_data);         // merkle tree 의 노드 수정
+                m_current_layer.transaction.push_back(transaction); // 반영된 transaction 보관
+                if (isCurrent)  // current layer 에 존재하던 데이터라면, current layer 의 데이터를 수정
+                    it->second.var_value = val.var_value;
+                else            // DB, m_layer[depth] 에 존재하던 데이터라면, current layer 에 수정된 데이터를 삽입
+                    m_current_layer.m_temporary_data.insert(make_pair(key, val));
             }
-
-            //modified_data.record_id = data.first;
-            modified_data.user_id = key.user_id;
-            modified_data.var_type = key.var_type;
-            modified_data.var_name = key.var_name;
-            modified_data.var_value = val.var_value;
-
-            m_tree.modifyNode(val.path, modified_data);   // merkle tree 의 노드 수정
-            m_current_layer.transaction.push_back(transaction);                 // 반영된 transaction 보관
-            // it == end() 이면 DB 에서 처음으로 불러온 데이터인 경우이므로 insert
-            if(it == m_current_layer.m_temporary_data.end())
-                m_current_layer.m_temporary_data.insert(make_pair(key, val));
-            // 그렇지 않으면 m_current_layer 또는 m_layer[depth]에서 찾은 경우이므로 update
-            else
-                it->second.var_value = val.var_value;
 
             return status;
         }
@@ -480,14 +492,14 @@ namespace gruut
 
                 int depth = checkLayer(key);
 
-                if (depth == -2) {
+                if (depth == NO_DATA) {
                     // new_layer 의 map 변수에 새로운 데이터 삽입
                     Value val(value, m_tree.getRoot()->makePath(user_id, var_type, var_name));
                     m_current_layer.m_temporary_data.insert(make_pair(key, val));
                     cout << key << ", " << val << endl;
                 } else {
                     cout << "[ERROR] Storage::newCommand() - Data already exist" << endl;
-                    status = DATA_EXIST;
+                    status = DATA_DUPLICATE;
                 }
             }
 
@@ -496,7 +508,44 @@ namespace gruut
         int delCommand(json transaction)
         {
 
-            return 0;
+            int status = SUCCESS;
+            string user_id = transaction["user_id"];
+            string var_type = transaction["var_type"];
+            string var_name = transaction["var_name"];
+            bool isCurrent = false;
+
+            Key key(user_id, var_type, var_name);
+            Value val;
+            map<Key, Value>::iterator it;
+
+            int depth = checkLayer(key);
+
+            if (depth == NO_DATA) {
+                cout << "[ERROR] Storage::delCommand() - Can't find data" << endl;
+                status = DATA_NOT_EXIST;
+            }
+            if (depth == DB_DATA) {
+                pair<int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(user_id, var_type, var_name);
+                val.var_value = data.second[VAR_VALUE];
+                val.path = (uint) stoul(data.second[PATH]);
+            }
+            else if (depth == CUR_DATA) {
+                it = m_current_layer.m_temporary_data.find(key);
+                val = it->second;
+                isCurrent = true;
+            }
+            else {
+                it = m_layer[depth].m_temporary_data.find(key);
+                val = it->second;
+            }
+
+            val.isDeleted = true;
+            if (isCurrent)  // current layer 에 존재할 경우, current layer 의 데이터 수정
+                it->second.isDeleted = true;
+            else            // DB에 있거나 m_layer[depth] 에 존재했을 경우 -> current layer 에 삽입
+                m_current_layer.m_temporary_data.insert(make_pair(key, val));
+
+            return status;
         }
 
 
@@ -504,27 +553,42 @@ namespace gruut
         // 레이어에 없으면 마지막으로 DB를 살펴본 뒤, 존재하면 -1, 존재하지 않으면 -2 반환함.
         int checkLayer(Key key)
         {
-            int depth = 4;
+            int depth = _D_CUR_LAYER;
             map<Key, Value>::iterator it;
 
             it = m_current_layer.m_temporary_data.find(key);
             if (it != m_current_layer.m_temporary_data.end()) {
-                return depth;
+                if (it->second.isDeleted) {
+                    return NO_DATA;
+                }
+                else {
+                    return CUR_DATA;
+                }
             }
 
-            depth = m_layer.size() - 1;
+            depth = (int) m_layer.size() - 1;
 
             for(; depth >= 0; depth--)
             {
                 it = m_layer[depth].m_temporary_data.find(key);
-                if (it != m_layer[depth].m_temporary_data.end())
-                    break;
+                if (it != m_layer[depth].m_temporary_data.end()) {
+                    if (it->second.isDeleted) {
+                        return NO_DATA;
+                    }
+                    else {
+                        break;
+                    }
+                }
 
             }
-            if (depth == -1) {
-                // DB에 데이터 없음
+            if (depth == DB_DATA) {
+                // DB 체크
                 if ( m_server.checkUserIdVarName(&key.user_id, &key.var_name) ) {
-                    depth = -2;
+                    // DB 에도 없으면 -2 반환
+                    depth = NO_DATA;
+                }
+                else {
+                    // 나중에 DB에 lifetime 이 추가되면, isDeleted 역할을 하는 것 처럼 사용할 수도 있을듯...
                 }
             }
             return depth;
@@ -534,17 +598,19 @@ namespace gruut
         void testStorage()
         {
             testForward(blocks[0]);
-            testShow("mizno", "coin", "gru");
-            testShow("mang", "coin", "gru");
-            testForward(blocks[1]);
-            testShow("mizno", "coin", "gru");
-            testShow("mang", "coin", "gru");
-            testShow("kjh", "coin", "btc");
-            testShow("kjh", "coin", "gru");
             applyFrontLayer();
-//            testForward(blocks[2]);
-//            testShow("mizno", "coin", "gru");
-//            testShow("kjh", "coin", "gru");
+            //testShow("mizno", "coin", "gru");
+            //testShow("mang", "coin", "gru");
+            testForward(blocks[1]);
+            applyFrontLayer();
+            //testShow("mizno", "coin", "gru");
+            //testShow("mang", "coin", "gru");
+            //testShow("kjh", "coin", "btc");
+            //testShow("kjh", "coin", "gru
+            testForward(blocks[2]);
+            applyFrontLayer();
+            //testShow("mizno", "coin", "gru");
+            //testShow("kjh", "coin", "btc");
 //
 //            testBackward(1);
 //            testShow("mizno", "coin", "gru");
@@ -555,6 +621,7 @@ namespace gruut
         {
             parseBlockToLayer(block);
             pushLayer();
+            m_current_layer.clear();
         }
         void testBackward(int back_cnt)
         {
@@ -564,41 +631,34 @@ namespace gruut
         }
         void testShow(string user_id, string var_type, string var_name)
         {
-            // m_layer deque 를 저장한
-            deque<Layer> m_layer_temp;
-            m_layer_temp.swap(m_layer);
-
             Key key(user_id, var_type, var_name);
-            cout<<"testShow - key: "<<key<<endl;
             Value val;
+            int depth = checkLayer(key);
             map<Key, Value>::iterator it;
-            bool found = false;
 
-            while(!m_layer_temp.empty())
-            {
-                Layer layer = m_layer_temp.back();
-                m_layer_temp.pop_back();
-                m_layer.push_front(layer);
+            if(depth == NO_DATA) {
+                cout << "Can't find " << key << endl;
+            }
+            else {
+                if (depth == DB_DATA) {
+                    cout << "[DB] ";
+                    pair<int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(user_id, var_type,
+                                                                                                  var_name);
 
-                it = layer.m_temporary_data.find(key);
-                if(it!=layer.m_temporary_data.end()) {
+                    val.var_value = data.second[VAR_VALUE];
+                    val.path = (uint) stoul(data.second[PATH]);
+                    val.isDeleted = false;
+                } else if (depth == CUR_DATA) {
+                    cout << "[Current Layer] ";
+                    it = m_current_layer.m_temporary_data.find(key);
                     val = it->second;
-                    cout<<"testShow - val: "<<val<<endl;
-                    found = true;
-                    break;
+                } else {
+                    cout << "[Layer " << depth << "] ";
+                    it = m_layer[depth].m_temporary_data.find(key);
+                    val = it->second;
                 }
-            }
 
-            while(!m_layer_temp.empty())
-            {
-                Layer layer = m_layer_temp.back();
-                m_layer_temp.pop_back();
-                m_layer.push_front(layer);
-            }
-
-            if (!found)
-            {
-                cout << "in the DB, or doesn't have data" << endl;
+                cout << key << ", " << val << endl;
             }
         }
     };
