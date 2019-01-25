@@ -22,8 +22,8 @@ int DB_test() {
     string smart_contract; // json data from smart contract
 
     smart_contract = "{\"kind of transaction\":\"money transfer\""
-                     ",\"from_user_id\":\"mizno\",\"from_var_name\":\"acc_bal\""
-                     ",\"to_user_id\":\"mang\",\"to_var_name\":\"acc_bal\""
+                     ",\"from_user_id\":\"mizno\",\"from_var_type\":\"coin\"\",\"from_var_name\":\"gru\""
+                     ",\"to_user_id\":\"mang\",\"to_var_type\":\"coin\"\",\"to_var_name\":\"gru\""
                      ",\"value\":10000}";
 
     cout << smart_contract << endl;
@@ -56,7 +56,7 @@ int DB_test() {
         // mariaDb.checkUserIdVarName("mizno", "user_name"); // var_name of Database, params should be point variable
 
         if(pJ.getPKindOfTransaction() == "money transfer") {
-            if(mariaDb.transferMoney(pJ.getPFromUserId(), pJ.getPFromVarName(), pJ.getPToUserId(), pJ.getPToVarName(), pJ.getPValue()) == 0) {
+            if(mariaDb.transferMoney(pJ.getPFromUserId(), pJ.getPFromVarType(), pJ.getPFromVarName(), pJ.getPToUserId(), pJ.getPToVarType(), pJ.getPToVarName(), pJ.getPValue()) == 0) {
 
             }
         } else {

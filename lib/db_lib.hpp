@@ -23,8 +23,10 @@ namespace gruut {
         // for money transfer
         string pKindOfTransaction; // p means 'parsed'
         string pFromUserId;
+        string pFromVarType;
         string pFromVarName;
         string pToUserId;
+        string pToVarType;
         string pToVarName;
         int pValue;
 
@@ -36,8 +38,10 @@ namespace gruut {
 
             pKindOfTransaction = js["kind of transaction"];
             pFromUserId = js["from_user_id"];
+            pFromVarType = js["from_var_type"];
             pFromVarName = js["from_var_name"];
             pToUserId = js["to_user_id"];
+            pToVarType = js["to_var_type"];
             pToVarName = js["to_var_name"];
             pValue = js["value"];
 
@@ -58,12 +62,20 @@ namespace gruut {
             return pFromUserId;
         }
 
+        string getPFromVarType() {
+            return pFromVarType;
+        }
+
         string getPFromVarName() {
             return pFromVarName;
         }
 
         string getPToUserId() {
             return pToUserId;
+        }
+
+        string getPToVarType() {
+            return pToVarType;
         }
 
         string getPToVarName() {
@@ -117,8 +129,8 @@ namespace gruut {
         int disConnection() {return 0;}
 
         int insert(string recordId, string userId, string varType, string varName, string varValue) {return 0;}
-        int update(string userId, string varName, string varValue) {return 0;}
-        int deleteData(string userId, string varName) {return 0;}
+        int update(string userId, string varType, string varName, string varValue) {return 0;}
+        int deleteData(string userId, string varType, string varName) {return 0;}
         int selectAllUsingUserId() {return 0;}
         int selectValueUsingUserIdVarName(string userId, string varName) { return 0; }
         int selectAll() {return 0;}
@@ -126,9 +138,10 @@ namespace gruut {
         int checkUserId(string userId) {return 0;}
         int checkVarName(string varName) {return 0;}
         int checkUserIdVarName(string userId, string varName) {return 0;}
+        int checkUserIdVarTypeVarName(string *userId, string *varType, string *varName) {return 0;}
 
         // for money transfer
-        int transferMoney(string fromUserId, string fromVarName, string toUserId, string toVarName, int value) {return 0;}
+        int transferMoney(string fromUserId, string fromVarType, string fromVarName, string toUserId, string toVarType, string toVarName, int value)  {return 0;}
         int checkAccBal(string userId, string varName, string Value) {return 0;}
 
     };
@@ -184,9 +197,9 @@ namespace gruut {
             return 0;
         }
 
-        int insert(string recordId, string userId, string varType, string varName, string varValue) {
-            if(checkUserIdVarName(&userId, &varName) == 1) {
-                query = "INSERT INTO test VALUES('"+ recordId +"', '" + userId + "', '" + varType + "', '" + varName + "', '" + varValue + "')";
+        int insert(string userId, string varType, string varName, string varValue, string path) {
+            if(checkUserIdVarTypeVarName(&userId, &varType, &varName) == 1) {
+                query = "INSERT INTO test (user_id, var_type, var_name, var_value, path) VALUES('"+ userId + "', '" + varType + "', '" + varName + "', '" + varValue + "', '" + path + "')";
                 if(performQuery(query) == 0) {
                     cout << "insert() function was processed!!!" << endl;
                     mysql_free_result(res);
@@ -206,9 +219,9 @@ namespace gruut {
             return 0;
         }
 
-        int update(string userId, string varName, string varValue) {
-            if(checkUserIdVarName(&userId, &varName) == 0) {
-                query = "UPDATE test SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_name='" + varName +"'";
+        int update(string userId, string varType, string varName, string varValue) {
+            if(checkUserIdVarTypeVarName(&userId, &varType, &varName) == 0) {
+                query = "UPDATE test SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName +"'";
                 if(performQuery(query) == 0) {
                     cout << "update() function was processed!!!" << endl;
                     mysql_free_result(res);
@@ -228,9 +241,9 @@ namespace gruut {
             return 0;
         }
 
-        int deleteData(string userId, string varName) {
-            if(checkUserIdVarName(&userId, &varName) == 0) {
-                query = "DELETE FROM test WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
+        int deleteData(string userId, string varType, string varName) {
+            if(checkUserIdVarTypeVarName(&userId, &varType, &varName) == 0) {
+                query = "DELETE FROM test WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName + "'";
                 if(performQuery(query) == 0) {
                     cout << "deleteData() function was processed!!!" << endl;
                     return 0;
@@ -355,7 +368,7 @@ namespace gruut {
         }
 
         int checkUserIdVarName(string *userId, string *varName) {
-            query = "SELECT user_id, var_name FROM test WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";;
+            query = "SELECT user_id, var_name FROM test WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
@@ -374,8 +387,28 @@ namespace gruut {
             return 0;
         }
 
+        int checkUserIdVarTypeVarName(string *userId, string *varType, string *varName) {
+            query = "SELECT user_id, var_name FROM test WHERE user_id='" + *userId + "' AND var_type='" + *varType + "' AND var_name='" + *varName + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                if((row = mysql_fetch_row(res)) != NULL) {
+                    cout << row[0] << ", "<< row[1] << ", " << row[2] << endl;
+                    cout << "exists." << endl;
+                    mysql_free_result(res);
+                    return 0;
+                } else {
+                    cout << *userId << ", " << *varType << ", " << *varName << endl;
+                    cout << "does not exist." << endl;
+                    mysql_free_result(res);
+                    return 1;
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
 
-        int transferMoney(string fromUserId, string fromVarName, string toUserId, string toVarName, int value) {
+
+        int transferMoney(string fromUserId, string fromVarType, string fromVarName, string toUserId, string toVarType, string toVarName, int value) {
 
             cout << fromUserId << " / " << fromVarName << " / " << toUserId << " / " << toVarName << " / " << value << endl;
 
@@ -383,7 +416,7 @@ namespace gruut {
                 int fromBal;
                 int toBal;
 
-                query = "SELECT var_value FROM test WHERE user_id='" + fromUserId + "' AND var_name='" + fromVarName + "'";;
+                query = "SELECT var_value FROM test WHERE user_id='" + fromUserId + "' AND var_name='" + fromVarName + "'";
                 if(performQuery(query) == 0) {
                     columns = mysql_num_fields(res); // the number of field
                     if((row = mysql_fetch_row(res)) != NULL) {
@@ -393,7 +426,7 @@ namespace gruut {
                 // cout << fromBal << endl;
                 mysql_free_result(res);
 
-                query = "SELECT var_value FROM test WHERE user_id='" + toUserId + "' AND var_name='" + toVarName + "'";;
+                query = "SELECT var_value FROM test WHERE user_id='" + toUserId + "' AND var_name='" + toVarName + "'";
                 if(performQuery(query) == 0) {
                     columns = mysql_num_fields(res); // the number of field
                     if((row = mysql_fetch_row(res)) != NULL) {
@@ -403,8 +436,8 @@ namespace gruut {
                 // cout << toBal << endl;
                 mysql_free_result(res);
 
-                update(fromUserId, fromVarName, to_string(fromBal-value)); // user_id, var_name and var_value of Database
-                update(toUserId, toVarName, to_string(toBal+value)); // user_id, var_name and var_value of Database
+                update(fromUserId, fromVarType, fromVarName, to_string(fromBal-value)); // user_id, var_name and var_value of Database
+                update(toUserId, toVarType, toVarName, to_string(toBal+value)); // user_id, var_name and var_value of Database
 
                 mysql_free_result(res);
                 return 0;
