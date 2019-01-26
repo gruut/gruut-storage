@@ -580,6 +580,7 @@ namespace gruut {
             postOrder(root, isPrint);
 
             if(isPrint) {
+                printf("root Value: %s\n", valueToStr(root->getValue()).c_str());
                 printf("*********** finish traversal ***********\n");
             }
 

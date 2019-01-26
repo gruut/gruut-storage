@@ -610,7 +610,16 @@ namespace gruut
 
                 if (depth == NO_DATA) {
                     // new_layer 의 map 변수에 새로운 데이터 삽입
-                    Value val(value, m_tree.getRoot()->makePath(user_id, var_type, var_name));
+                    uint path = m_tree.getRoot()->makePath(user_id, var_type, var_name);
+                    Value val(value, path);
+
+                    test_data new_data;
+                    new_data.user_id = user_id;
+                    new_data.var_type = var_type;
+                    new_data.var_name = var_name;
+                    new_data.var_value = value;
+
+                    m_tree.addNode(path, new_data);
                     m_current_layer.m_temporary_data.insert(make_pair(key, val));
                     cout << key << ", " << val << endl;
                 } else {
@@ -656,6 +665,7 @@ namespace gruut
             }
 
             val.isDeleted = true;
+            m_tree.removeNode(val.path);
             if (isCurrent)  // current layer 에 존재할 경우, current layer 의 데이터 수정
                 it->second.isDeleted = true;
             else            // DB에 있거나 m_layer[depth] 에 존재했을 경우 -> current layer 에 삽입
@@ -714,29 +724,33 @@ namespace gruut
         void testStorage()
         {
             testForward(blocks[0]);
+            m_tree.printTreePostOrder();
             //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("mang", "coin", "gru");
             testForward(blocks[1]);
+            m_tree.printTreePostOrder();
             //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("mang", "coin", "gru");
             //testShow("kjh", "coin", "btc");
             //testShow("kjh", "coin", "gru
             testForward(blocks[2]);
+            m_tree.printTreePostOrder();
             //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("kjh", "coin", "btc");
-//
-//            testBackward();
+
+            testBackward();
+            m_tree.printTreePostOrder();
 //            testShow("mizno", "coin", "gru");
 //            testBackward();
 //            testShow("mizno", "coin", "gru");
 
-            testForward(blocks[3]);
+            //testForward(blocks[3]);
             //applyFrontLayer();
-            testForward(blocks[4]);
-            testForward(blocks[5]);
+            //testForward(blocks[4]);
+            //testForward(blocks[5]);
         }
         void testForward(Block block)
         {
@@ -746,7 +760,60 @@ namespace gruut
         }
         void testBackward()
         {
-            popBackLayer();
+            cout << "--------------- test Backward called -----------------" << endl;
+            Layer back_layer = popBackLayer();
+
+            for(auto data: back_layer.m_temporary_data)
+            {
+                Key key = data.first;
+                Value value = data.second;
+                uint path;
+                test_data rollback_data;
+
+                rollback_data.user_id = key.user_id;
+                rollback_data.var_type = key.var_type;
+                rollback_data.var_name = key.var_name;
+
+                cout << key << ", " << value << endl;
+
+                // 지워진 데이터라면 addNode 를 호출하여 다시 트리에 삽입
+                if(value.isDeleted) {
+                    rollback_data.var_value = value.var_value;
+                    path = value.path;
+
+                    m_tree.addNode(path, rollback_data);
+                }
+                else {
+                    // 지워진 데이터가 아니라면 남은 레이어와 DB 에서 찾아봄
+                    int depth = checkLayer(key);
+                    // 데이터가 존재한다면 modifyNode 호출하여 이전값으로 돌림
+                    if(depth != NO_DATA) {
+                        if(depth == DB_DATA) {
+                            cout << "data is in the DB" << endl;
+                            pair< int, vector<string> > db_data = m_server.selectAllUsingUserIdVarTypeVarName(key.user_id, key.var_type, key.var_name);
+
+                            rollback_data.var_value = db_data.second[VAR_VALUE];
+                            path = (uint) stoul(db_data.second[PATH]);
+                        }
+                        else {
+                            cout << "data is in the m_layer[" << depth << "]" << endl;
+                            map<Key, Value>::iterator it;
+                            it = m_layer[depth].m_temporary_data.find(key);
+
+                            rollback_data.var_value = it->second.var_value;
+                            path = it->second.path;
+                        }
+                        m_tree.modifyNode(path, rollback_data);
+                    }
+                    // 데이터가 존재하지 않는다면 removeNode 호출하여 트리에서 제거
+                    else {
+                        cout << "can't find data" << endl;
+
+                        path = value.path;
+                        m_tree.removeNode(path);
+                    }
+                }
+            }
         }
         void testShow(string user_id, string var_type, string var_name)
         {

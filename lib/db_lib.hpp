@@ -388,7 +388,7 @@ namespace gruut {
         }
 
         int checkUserIdVarTypeVarName(string *userId, string *varType, string *varName) {
-            query = "SELECT user_id, var_name FROM test WHERE user_id='" + *userId + "' AND var_type='" + *varType + "' AND var_name='" + *varName + "'";
+            query = "SELECT user_id, var_type, var_name FROM test WHERE user_id='" + *userId + "' AND var_type='" + *varType + "' AND var_name='" + *varName + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
