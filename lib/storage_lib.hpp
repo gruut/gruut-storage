@@ -735,9 +735,9 @@ namespace gruut
             //testShow("mang", "coin", "gru");
             //testShow("kjh", "coin", "btc");
             //testShow("kjh", "coin", "gru
-            testForward(blocks[2]);
-            m_tree.printTreePostOrder();
-            //applyFrontLayer();
+//            testForward(blocks[2]);
+//            m_tree.printTreePostOrder();
+//            //applyFrontLayer();
             //testShow("mizno", "coin", "gru");
             //testShow("kjh", "coin", "btc");
 

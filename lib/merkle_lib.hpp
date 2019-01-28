@@ -282,8 +282,8 @@ namespace gruut {
             if (!node->isDummy()) {
                 if (isPrint) {
                     printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
-                    printf("[path: %s] suffix: %d,  hash_value: %s\n",
-                            intToBin(node->getDebugPath()), node->getSuffix(), valueToStr(node->getValue()).c_str());
+                    printf("[path: %s] suffix_len: %d, suffix: %s,  hash_value: %s\n",
+                            intToBin(node->getDebugPath()), node->getSuffixLen(), intToBin(node->getSuffix()), valueToStr(node->getValue()).c_str());
                 }
                 stk.push(node);
             }
@@ -342,12 +342,12 @@ namespace gruut {
                 dir = getDirectionOf(new_path, dir_pos);        // false: left, true: right
                 if (!dir && (node->getLeft() == nullptr)) {
                     node->setLeft(new_node);
-                    node->setSuffix(new_path, dir_pos);
+                    new_node->setSuffix(new_path, dir_pos);
                     break;
                 }
                 else if (dir && (node->getRight() == nullptr)) {
                     node->setRight(new_node);
-                    node->setSuffix(new_path, dir_pos);
+                    new_node->setSuffix(new_path, dir_pos);
                     break;
                 }
                 // path 로 진행하는 방향에 노드가 존재하면 계속해서 내려감
@@ -415,10 +415,14 @@ namespace gruut {
                 if (!getDirectionOf(new_path, dir_pos)) {
                     prev_node->setLeft(new_node);
                     prev_node->setRight(old_node);
+                    new_node->setSuffix(new_path, dir_pos);
+                    old_node->setSuffix(old_path, dir_pos);
                 }
                 else {
                     prev_node->setRight(new_node);
                     prev_node->setLeft(old_node);
+                    new_node->setSuffix(new_path, dir_pos);
+                    old_node->setSuffix(old_path, dir_pos);
                 }
             }   // collision 해결
 
