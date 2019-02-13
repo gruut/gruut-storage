@@ -36,7 +36,7 @@ namespace gruut {
             json js;
             js = json::parse(json_data);
 
-            pKindOfTransaction = js["kind of transaction"];
+            pKindOfTransaction = js["kind_of_transaction"];
             pFromUserId = js["from_user_id"];
             pFromVarType = js["from_var_type"];
             pFromVarName = js["from_var_name"];
@@ -128,21 +128,43 @@ namespace gruut {
         int performQuery(string query) {return 0;}
         int disConnection() {return 0;}
 
-        int insert(string recordId, string userId, string varType, string varName, string varValue) {return 0;}
-        int update(string userId, string varType, string varName, string varValue) {return 0;}
+        // for ledger table in DB
+        int insert(string blockId, string userId, string varType, string varName, string varValue, string path) {return 0;}
+        int updateVarValue(string userId, string varType, string varName, string varValue) {return 0;}
         int deleteData(string userId, string varType, string varName) {return 0;}
-        int selectAllUsingUserId() {return 0;}
-        int selectValueUsingUserIdVarName(string userId, string varName) { return 0; }
-        int selectAll() {return 0;}
+        int selectAllUsingUserId(string userId) {return 0;}
+        pair<int, vector<string>> selectAllUsingUserIdVarTypeVarName(string userId, string varType, string varName) {pair<int, vector<string>> rst; return rst;}
+        int selectValueUsingUserIdVarName(string userId, string varName) {return 0;}
+        vector<pair<int, vector<string>>> selectAll() {vector<pair<int, vector<string>>> rst; return rst;}
 
+        // for ledger table in DB
         int checkUserId(string userId) {return 0;}
         int checkVarName(string varName) {return 0;}
-        int checkUserIdVarName(string userId, string varName) {return 0;}
+        int checkUserIdVarName(string *userId, string *varName) {return 0;}
         int checkUserIdVarTypeVarName(string *userId, string *varType, string *varName) {return 0;}
 
         // for money transfer
         int transferMoney(string fromUserId, string fromVarType, string fromVarName, string toUserId, string toVarType, string toVarName, int value)  {return 0;}
-        int checkAccBal(string userId, string varName, string Value) {return 0;}
+        int checkBalance(string *userId, string *varName, int *value) {return 0;}
+
+        // for layer table in DB, don't need a update function.
+        int layerInsert(string blockId, string scContents) {return 0;}
+        int layerDelete(string blockId, string scContents) {return 0;}
+        int layerSelectAll() {return 0;}
+
+        // for block table in DB
+        int blockInsert(string blockId, string blockHash) {return 0;}
+        int blockUpdateBlockHash(string blockId, string blockHash) {return 0;}
+        int blockDelete(string blockId, string blockHash) {return 0;}
+        int blockSelectUsingBlockId(string blockId) {return 0;}
+        int blockSelectAll() {return 0;}
+
+        // for transaction table in DB, don't need a update function.
+        int transactionInsert(string blockId, string reqrst, string scContents) {return 0;}
+        int transactionDelete(string blockId, string reqrst, string scContents) {return 0;}
+        int transactionSelectUsingBlockId(string blockId) {return 0;}
+        int transactionSelectAll() {return 0;}
+
 
     };
 
@@ -197,9 +219,9 @@ namespace gruut {
             return 0;
         }
 
-        int insert(string userId, string varType, string varName, string varValue, string path) {
+        int insert(string blockId, string userId, string varType, string varName, string varValue, string path) {
             if(checkUserIdVarTypeVarName(&userId, &varType, &varName) == 1) {
-                query = "INSERT INTO test (user_id, var_type, var_name, var_value, path) VALUES('"+ userId + "', '" + varType + "', '" + varName + "', '" + varValue + "', '" + path + "')";
+                query = "INSERT INTO ledger (block_id, user_id, var_type, var_name, var_value, merkle_path) VALUES('"+ blockId + "', '"+ userId + "', '" + varType + "', '" + varName + "', '" + varValue + "', '" + path + "')";
                 if(performQuery(query) == 0) {
                     cout << "insert() function was processed!!!" << endl;
                     mysql_free_result(res);
@@ -219,31 +241,31 @@ namespace gruut {
             return 0;
         }
 
-        int update(string userId, string varType, string varName, string varValue) {
+        int updateVarValue(string userId, string varType, string varName, string varValue) {
             if(checkUserIdVarTypeVarName(&userId, &varType, &varName) == 0) {
-                query = "UPDATE test SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName +"'";
+                query = "UPDATE ledger SET var_value='" + varValue + "' WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName +"'";
                 if(performQuery(query) == 0) {
-                    cout << "update() function was processed!!!" << endl;
+                    cout << "updateVarValue() function was processed!!!" << endl;
                     mysql_free_result(res);
                     return 0;
                 } else {
-                    cout << "update() function was not processed!!!" << endl;
+                    cout << "updateVarValue() function was not processed!!!" << endl;
                     mysql_free_result(res);
                     return 1;
                 }
             } else {
-                cout << "update() function was not processed!!!" << endl;
+                cout << "updateVarValue() function was not processed!!!" << endl;
                 mysql_free_result(res);
                 return 1;
             }
-            cout << "update() function was processed!!!" << endl;
+            cout << "updateVarValue() function was processed!!!" << endl;
             mysql_free_result(res);
             return 0;
         }
 
         int deleteData(string userId, string varType, string varName) {
             if(checkUserIdVarTypeVarName(&userId, &varType, &varName) == 0) {
-                query = "DELETE FROM test WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName + "'";
+                query = "DELETE FROM ledger WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName + "'";
                 if(performQuery(query) == 0) {
                     cout << "deleteData() function was processed!!!" << endl;
                     return 0;
@@ -261,7 +283,7 @@ namespace gruut {
         }
 
         int selectAllUsingUserId(string userId) {
-            query = "SELECT * FROM test WHERE user_id='" + userId + "'";
+            query = "SELECT * FROM ledger WHERE user_id='" + userId + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
@@ -274,9 +296,10 @@ namespace gruut {
             mysql_free_result(res);
             return 0;
         }
-        pair< int, vector<string> > selectAllUsingUserIdVarTypeVarName(string userId, string varType, string varName) {
-            query = "SELECT * FROM test WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName + "'";
-            pair< int, vector<string> > all;
+
+        pair<int, vector<string>> selectAllUsingUserIdVarTypeVarName(string userId, string varType, string varName) {
+            query = "SELECT * FROM ledger WHERE user_id='" + userId + "' AND var_type='" + varType + "' AND var_name='" + varName + "'";
+            pair<int, vector<string>> all;
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
@@ -294,7 +317,7 @@ namespace gruut {
 
         int selectValueUsingUserIdVarName(string userId, string varName) {
             int result = -1;
-            query = "SELECT var_value FROM test WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
+            query = "SELECT var_value FROM ledger WHERE user_id='" + userId + "' AND var_name='" + varName + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
@@ -305,22 +328,22 @@ namespace gruut {
             return result;
         }
 
-        vector< pair< int, vector<string> > > selectAll() {
-            query = "SELECT * FROM test ORDER BY record_id";
-            vector< pair< int, vector<string> > > all;
+        vector<pair<int, vector<string>>> selectAll() {
+            query = "SELECT * FROM ledger ORDER BY record_id";
+            vector<pair<int, vector<string>>> all;
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 while((row = mysql_fetch_row(res)) != NULL) {
-                    pair< int, vector<string> > record;
-                    //printf("%15s\t", row[0]);
+                    pair<int, vector<string>> record;
+                    printf("%15s\t", row[0]);
                     record.first = stoi(row[0]);
                     record.second.clear();
                     for(i=1; i<columns; i++) {
                         record.second.push_back(row[i]);
-                        //printf("%15s\t", row[i]);
+                        printf("%15s\t", row[i]);
                     }
                     all.push_back(record);
-                    //printf("\n");
+                    printf("\n");
                 }
             }
             mysql_free_result(res);
@@ -328,7 +351,7 @@ namespace gruut {
         }
 
         int checkUserId(string userId) {
-            query = "SELECT user_id FROM test WHERE user_id='" + userId + "'";
+            query = "SELECT user_id FROM ledger WHERE user_id='" + userId + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
@@ -348,7 +371,7 @@ namespace gruut {
         }
 
         int checkVarName(string varName) {
-            query = "SELECT var_name FROM test WHERE var_name='" + varName + "'";
+            query = "SELECT var_name FROM ledger WHERE var_name='" + varName + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
@@ -368,7 +391,7 @@ namespace gruut {
         }
 
         int checkUserIdVarName(string *userId, string *varName) {
-            query = "SELECT user_id, var_name FROM test WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";
+            query = "SELECT user_id, var_name FROM ledger WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
@@ -388,7 +411,7 @@ namespace gruut {
         }
 
         int checkUserIdVarTypeVarName(string *userId, string *varType, string *varName) {
-            query = "SELECT user_id, var_type, var_name FROM test WHERE user_id='" + *userId + "' AND var_type='" + *varType + "' AND var_name='" + *varName + "'";
+            query = "SELECT user_id, var_type, var_name FROM ledger WHERE user_id='" + *userId + "' AND var_type='" + *varType + "' AND var_name='" + *varName + "'";
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
@@ -412,11 +435,11 @@ namespace gruut {
 
             cout << fromUserId << " / " << fromVarName << " / " << toUserId << " / " << toVarName << " / " << value << endl;
 
-            if(checkAccBal(&fromUserId, &fromVarName, &value) == 0) {
+            if(checkBalance(&fromUserId, &fromVarName, &value) == 0) {
                 int fromBal;
                 int toBal;
 
-                query = "SELECT var_value FROM test WHERE user_id='" + fromUserId + "' AND var_name='" + fromVarName + "'";
+                query = "SELECT var_value FROM ledger WHERE user_id='" + fromUserId + "' AND var_name='" + fromVarName + "'";
                 if(performQuery(query) == 0) {
                     columns = mysql_num_fields(res); // the number of field
                     if((row = mysql_fetch_row(res)) != NULL) {
@@ -426,7 +449,7 @@ namespace gruut {
                 // cout << fromBal << endl;
                 mysql_free_result(res);
 
-                query = "SELECT var_value FROM test WHERE user_id='" + toUserId + "' AND var_name='" + toVarName + "'";
+                query = "SELECT var_value FROM ledger WHERE user_id='" + toUserId + "' AND var_name='" + toVarName + "'";
                 if(performQuery(query) == 0) {
                     columns = mysql_num_fields(res); // the number of field
                     if((row = mysql_fetch_row(res)) != NULL) {
@@ -436,8 +459,8 @@ namespace gruut {
                 // cout << toBal << endl;
                 mysql_free_result(res);
 
-                update(fromUserId, fromVarType, fromVarName, to_string(fromBal-value)); // user_id, var_name and var_value of Database
-                update(toUserId, toVarType, toVarName, to_string(toBal+value)); // user_id, var_name and var_value of Database
+                updateVarValue(fromUserId, fromVarType, fromVarName, to_string(fromBal-value)); // user_id, var_name and var_value of Database
+                updateVarValue(toUserId, toVarType, toVarName, to_string(toBal+value)); // user_id, var_name and var_value of Database
 
                 mysql_free_result(res);
                 return 0;
@@ -449,8 +472,9 @@ namespace gruut {
             return 1;
         }
 
-        int checkAccBal(string *userId, string *varName, int *value) {
-            query = "SELECT var_value FROM test WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";;
+        int checkBalance(string *userId, string *varName, int *value) {
+            // can check the etc, btc and gru and so on whether it is enough or not
+            query = "SELECT var_value FROM ledger WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";;
             if(performQuery(query) == 0) {
                 columns = mysql_num_fields(res); // the number of field
                 if((row = mysql_fetch_row(res)) != NULL) {
@@ -468,6 +492,199 @@ namespace gruut {
             mysql_free_result(res);
             return 1;
         }
+
+        int layerInsert(string blockId, string scContents) {
+            cout << "previous data" << endl;
+            if(layerSelectAll() < 10) {
+                query = "INSERT INTO layer (block_id, sc_contents) VALUES('" + blockId + "', '" + scContents + "')";
+                if(performQuery(query) == 0) {
+                    cout << "layerInsert() function was processed!!!" << endl;
+                    mysql_free_result(res);
+                    return 0;
+                } else {
+                    cout << "layerInsert() function was not processed!!!" << endl;
+                    mysql_free_result(res);
+                    return 1;
+                }
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "layer is full, so can insert more" << endl;
+            }
+            return 0;
+        }
+
+        int layerDelete(string blockId, string scContents) {
+            query = "DELETE FROM layer WHERE block_id='" + blockId + "' AND sc_contents='" + scContents + "'";
+            if(performQuery(query) == 0) {
+                cout << "layerDelete() function was processed!!!" << endl;
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "layerDelete() function was not processed!!!" << endl;
+                mysql_free_result(res);
+                return 1;
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int layerSelectAll() {
+            int numLayer = 0;
+            query = "SELECT * FROM layer ORDER BY record_id";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    numLayer++;
+                    printf("%15s\t", row[0]);
+                    for(i=1; i<columns; i++) {
+                        printf("%15s\t", row[i]);
+                    }
+                    printf("\n");
+                }
+            }
+            // cout << numLayer << endl;
+            mysql_free_result(res);
+            return numLayer;
+        }
+
+        int blockInsert(string blockId, string blockHash) {
+            query = "INSERT INTO block (block_id, block_hash) VALUES('" + blockId + "', '" + blockHash + "')";
+            if(performQuery(query) == 0) {
+                cout << "blockInsert() function was processed!!!" << endl;
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "blockInsert() function was not processed!!!" << endl;
+                mysql_free_result(res);
+                return 1;
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int blockUpdateBlockHash(string blockId, string blockHash) {
+            query = "UPDATE block SET block_hash='" + blockHash + "' WHERE block_id='" + blockId +"'";
+            if(performQuery(query) == 0) {
+                cout << "blockUpdateBlockHash() function was processed!!!" << endl;
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "blockUpdateBlockHash() function was not processed!!!" << endl;
+                mysql_free_result(res);
+                return 1;
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int blockDelete(string blockId) {
+            query = "DELETE FROM block WHERE block_id='" + blockId + "'";
+            if(performQuery(query) == 0) {
+                cout << "blockDelete() function was processed!!!" << endl;
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "blockDelete() function was not processed!!!" << endl;
+                mysql_free_result(res);
+                return 1;
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int blockSelectUsingBlockId(string blockId) {
+            query = "SELECT * FROM block WHERE block_id='" + blockId + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    for(i=0; i<columns; i++) {
+                        printf("%15s\t", row[i]);
+                    }
+                    printf("\n");
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int blockSelectAll() {
+            query = "SELECT * FROM block ORDER BY block_id";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    printf("%15s\t", row[0]);
+                    for(i=1; i<columns; i++) {
+                        printf("%15s\t", row[i]);
+                    }
+                    printf("\n");
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int transactionInsert(string blockId, string reqrst, string scContents) {
+            query = "INSERT INTO transaction (block_id, req_rst, sc_contents) VALUES('" + blockId + "', '" + reqrst + "', '" + scContents + "')";
+            if(performQuery(query) == 0) {
+                cout << "transactionInsert() function was processed!!!" << endl;
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "transactionInsert() function was not processed!!!" << endl;
+                mysql_free_result(res);
+                return 1;
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int transactionDelete(string blockId, string reqrst, string scContents) {
+            query = "DELETE FROM transaction WHERE block_id='" + blockId + "' AND req_rst='" + reqrst + "' AND sc_contents='" + scContents + "'";
+            if(performQuery(query) == 0) {
+                cout << "transactionDelete() function was processed!!!" << endl;
+                mysql_free_result(res);
+                return 0;
+            } else {
+                cout << "transactionDelete() function was not processed!!!" << endl;
+                mysql_free_result(res);
+                return 1;
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int transactionSelectUsingBlockId(string blockId) {
+            query = "SELECT * FROM transaction WHERE block_id='" + blockId + "'";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    for(i=0; i<columns; i++) {
+                        printf("%15s\t", row[i]);
+                    }
+                    printf("\n");
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
+        int transactionSelectAll() {
+            query = "SELECT * FROM transaction ORDER BY block_id";
+            if(performQuery(query) == 0) {
+                columns = mysql_num_fields(res); // the number of field
+                while((row = mysql_fetch_row(res)) != NULL) {
+                    printf("%15s\t", row[0]);
+                    for(i=1; i<columns; i++) {
+                        printf("%15s\t", row[i]);
+                    }
+                    printf("\n");
+                }
+            }
+            mysql_free_result(res);
+            return 0;
+        }
+
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////

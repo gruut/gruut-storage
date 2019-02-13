@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <sstream>
-#include <storage_lib.hpp>
+// #include <storage_lib.hpp>
 #include "json.hpp"
 #include "sha256.h"
 #include "db_lib.hpp"
@@ -21,9 +21,9 @@ int DB_test() {
     string db = "thevaulters";
     string smart_contract; // json data from smart contract
 
-    smart_contract = "{\"kind of transaction\":\"money transfer\""
-                     ",\"from_user_id\":\"mizno\",\"from_var_type\":\"coin\"\",\"from_var_name\":\"gru\""
-                     ",\"to_user_id\":\"mang\",\"to_var_type\":\"coin\"\",\"to_var_name\":\"gru\""
+    smart_contract = "{\"kind_of_transaction\":\"money_transfer\""
+                     ",\"from_user_id\":\"mizno\",\"from_var_type\":\"coin\",\"from_var_name\":\"gru\""
+                     ",\"to_user_id\":\"mang\",\"to_var_type\":\"coin\",\"to_var_name\":\"gru\""
                      ",\"value\":10000}";
 
     cout << smart_contract << endl;
@@ -46,21 +46,42 @@ int DB_test() {
 
     if(mariaDb.connectionSetup() == 0) {
 
-        // mariaDb.insert("8", "mang", "int", "acc_bal", "150000"); // record_id, user_id, var_name, var_name and var_value of Database
-        // mariaDb.update("mizno", "acc_bal", "240000"); // user_id, var_name and var_value of Database
+
+        // test the ledger table
+        // mariaDb.insert("8", "temp", "coin", "gru", "150", "11246"); // block_id, user_id, var_name, var_name, merkle_path and var_value of Database
+        // mariaDb.updateVarValue("mizno", "coin", "eth", "400"); // user_id, var_name and var_value of Database
         // mariaDb.deleteData("mang", "acc_bal"); // user_id and var_name of Database
         // mariaDb.selectAllUsingUserId("mizno"); // user_id of Database
         // mariaDb.selectAll();
         // mariaDb.checkUserId("mizno"); // user_id of Database
         // mariaDb.checkVarName("user_name"); // var_name of Database
         // mariaDb.checkUserIdVarName("mizno", "user_name"); // var_name of Database, params should be point variable
-
-        if(pJ.getPKindOfTransaction() == "money transfer") {
+        /*
+        if(pJ.getPKindOfTransaction() == "money_transfer") {
             if(mariaDb.transferMoney(pJ.getPFromUserId(), pJ.getPFromVarType(), pJ.getPFromVarName(), pJ.getPToUserId(), pJ.getPToVarType(), pJ.getPToVarName(), pJ.getPValue()) == 0) {
 
             }
         } else {
         }
+        */
+
+        // test the layer table
+        // mariaDb.layerInsert("1", "{\"kind_of_transaction\":\"money_transfer\",\"from_user_id\":\"temp\",\"from_var_type\":\"coin\",\"from_var_name\":\"gru\",\"to_user_id\":\"mizno\",\"to_var_type\":\"coin\",\"to_var_name\":\"gru\",\"value\":2}");
+        // mariaDb.layerDelete("1", "{\"kind_of_transaction\":\"money_transfer\",\"from_user_id\":\"temp\",\"from_var_type\":\"coin\",\"from_var_name\":\"gru\",\"to_user_id\":\"mizno\",\"to_var_type\":\"coin\",\"to_var_name\":\"gru\",\"value\":2}");
+        // mariaDb.layerSelectAll();
+
+        // test the block table
+        // mariaDb.blockInsert("1", "cf23df2207d99a74fbe169e3eba035e633b65d94");
+        // mariaDb.blockUpdateBlockHash("1", "cf23df2207d99a74fbe169e3eba035e633b65d95");
+        // mariaDb.blockDelete("1");
+        // mariaDb.blockSelectUsingBlockId("1");
+        // mariaDb.blockSelectAll();
+
+        // test the transaction table
+        // mariaDb.transactionInsert("2", "req", "{\"kind_of_transaction\":\"money_transfer\",\"from_user_id\":\"mizno\",\"from_var_type\":\"coin\",\"from_var_name\":\"gru\",\"to_user_id\":\"mang\",\"to_var_type\":\"coin\",\"to_var_name\":\"gru\",\"value\":500}");
+        // mariaDb.transactionDelete("1", "req", "{\"kind_of_transaction\":\"money_transfer\",\"from_user_id\":\"mizno\",\"from_var_type\":\"coin\",\"from_var_name\":\"gru\",\"to_user_id\":\"mang\",\"to_var_type\":\"coin\",\"to_var_name\":\"gru\",\"value\":10000}");
+        // mariaDb.transactionSelectUsingBlockId("2");
+        mariaDb.transactionSelectAll();
 
         if(mariaDb.disConnection()==0) {
 
@@ -72,6 +93,8 @@ int DB_test() {
 
 int main()
 {
+
+    /*
     gruut::Storage g_storage;
 
     g_storage.setBlocksByJson();
@@ -86,6 +109,10 @@ int main()
 //    test.makePath("mang", "coin", "eth");
 //    test.makePath("mang", "coin", "btc");
 //    test.makePath("mang", "coin", "gru");
+
+     */
+
+    DB_test();
 
     return 0;
 }

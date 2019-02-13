@@ -61,7 +61,7 @@ namespace gruut
         string var_type;
         string var_name;
 
-        Key(string id="", string type="", string name="")
+        Key(string rId="", string id="", string type="", string name="")
         {
             user_id = id;
             var_type = type;
@@ -338,10 +338,10 @@ namespace gruut
                 else {
 
                     if ( !m_server.checkUserIdVarTypeVarName(&key.user_id, &key.var_type, &key.var_name) ) { // DB 에 데이터 존재 -> update 수행
-                        m_server.update( key.user_id, key.var_type, key.var_name, value.var_value );
+                        m_server.updateVarValue( key.user_id, key.var_type, key.var_name, value.var_value );
                     }
                     else {  // DB 에 데이터 없음 -> insert 수행
-                        m_server.insert( key.user_id, key.var_type, key.var_name, value.var_value, to_string(value.path) );
+                        m_server.insert( key.user_id, key.var_type, key.var_name, value.var_value, to_string(value.path));
                     }
                 }
             }
