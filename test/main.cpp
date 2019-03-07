@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <sstream>
-// #include <storage_lib.hpp>
+#include <storage_lib.hpp>
 #include "json.hpp"
 #include "sha256.h"
 #include "db_lib.hpp"
@@ -15,8 +15,8 @@ int DB_test() {
     gruut::mariaDb mariaDb;
 
     string serverIp = "127.0.0.1";
-    string serverPort = "3307";
-    string admin = "root";
+    string serverPort = "3306";
+    string admin = "gruut_user";
     string pw = "1234";
     string db = "thevaulters";
     string smart_contract; // json data from smart contract

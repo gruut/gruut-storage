@@ -57,12 +57,14 @@ namespace gruut
     class Key
     {
     public:
+        string block_id;
         string user_id;
         string var_type;
         string var_name;
 
-        Key(string rId="", string id="", string type="", string name="")
+        Key(string bId="", string id="", string type="", string name="")
         {
+            block_id = bId;
             user_id = id;
             var_type = type;
             var_name = name;
@@ -341,7 +343,7 @@ namespace gruut
                         m_server.updateVarValue( key.user_id, key.var_type, key.var_name, value.var_value );
                     }
                     else {  // DB 에 데이터 없음 -> insert 수행
-                        m_server.insert( key.user_id, key.var_type, key.var_name, value.var_value, to_string(value.path));
+                        m_server.insert(key.block_id, key.user_id, key.var_type, key.var_name, value.var_value, to_string(value.path));
                     }
                 }
             }
