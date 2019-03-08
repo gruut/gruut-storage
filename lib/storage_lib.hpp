@@ -410,13 +410,14 @@ namespace gruut
 
         int addCommand(json transaction, Value &val) {
             int status = SUCCESS;
+            string block_id = transaction["block_id"];
             string to_user_id = transaction["to_user_id"];
             string to_var_type = transaction["to_var_type"];
             string to_var_name = transaction["to_var_name"];
             int value = transaction["value"];
             bool isCurrent = false;
 
-            Key key(to_user_id, to_var_type, to_var_name);
+            Key key(block_id, to_user_id, to_var_type, to_var_name);
             map<Key, Value>::iterator it;
             int depth = checkLayer(key);
 
@@ -481,6 +482,7 @@ namespace gruut
         int sendCommand(json transaction)
         {
             int status = SUCCESS;
+            string block_id = transaction["block_id"];
             string to_user_id   = transaction["to_user_id"];
             string to_var_type  = transaction["to_var_type"];
             string to_var_name  = transaction["to_var_name"];
@@ -521,6 +523,7 @@ namespace gruut
 
                 // from 먼저
                 new_transaction["command"] = "add";
+                new_transaction["block_id"] = block_id;
                 new_transaction["to_user_id"] = from_user_id;
                 new_transaction["to_var_type"] = from_var_type;
                 new_transaction["to_var_name"] =from_var_name;
@@ -531,6 +534,7 @@ namespace gruut
                 if (!status) {
                     // from 성공하고 나면 to 수행
                     new_transaction["command"] = "add";
+                    new_transaction["block_id"] = block_id;
                     new_transaction["to_user_id"] = to_user_id;
                     new_transaction["to_var_type"] = to_var_type;
                     new_transaction["to_var_name"] = to_var_name;
@@ -595,6 +599,7 @@ namespace gruut
         int newCommand(json transaction)
         {
             int status = SUCCESS;
+            string block_id = transaction["block_id"];
             string user_id = transaction["user_id"];
             string var_type = transaction["var_type"];
             string var_name = transaction["var_name"];
@@ -605,7 +610,7 @@ namespace gruut
                 status = COIN_VALUE;
             }
             else {
-                Key key(user_id, var_type, var_name);
+                Key key(block_id, user_id, var_type, var_name);
 
                 int depth = checkLayer(key);
 
@@ -635,12 +640,13 @@ namespace gruut
         {
 
             int status = SUCCESS;
+            string block_id = transaction["block_id"];
             string user_id = transaction["user_id"];
             string var_type = transaction["var_type"];
             string var_name = transaction["var_name"];
             bool isCurrent = false;
 
-            Key key(user_id, var_type, var_name);
+            Key key(block_id, user_id, var_type, var_name);
             Value val;
             map<Key, Value>::iterator it;
 
