@@ -23,7 +23,7 @@ using json = nlohmann::json;
 typedef unsigned int uint;
 
 #define _D_CUR_LAYER 4
-enum {USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
+enum {BLOCK_ID, USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
 enum {SUCCESS=0, COIN_VALUE=-1, DATA_DUPLICATE=-2, DATA_NOT_EXIST=-3};
 enum {NO_DATA=-2, DB_DATA=-1, CUR_DATA=_D_CUR_LAYER};
 
@@ -182,7 +182,7 @@ namespace gruut
 
         void readConfig()
         {
-            ifstream config_file("/mnt/d/lab/Project/workspace/gruut-storage/lib/storage_config.json");
+            ifstream config_file("/home/skmoon/workspace/gruut-storage/lib/storage_config.json");
             if(!config_file) {
                 cout << "ifstream error... Please check config file path" << endl;
                 return;
@@ -197,8 +197,8 @@ namespace gruut
             gruut::parseJson pJ;
 
             string serverIp = "127.0.0.1";
-            string serverPort = "3307";
-            string admin = "root";
+            string serverPort = "3306";
+            string admin = "gruut_user";
             string pw = "1234";
             string db = "thevaulters";
 
@@ -216,14 +216,12 @@ namespace gruut
         void setupMerkleTree()
         {
             vector< pair< int, vector<string> > > all = m_server.selectAll();
-
             for(auto item: all)
             {
-                printf("%5d\t", item.first);
-                for(auto column: item.second)
-                    printf("%15s\t", column.c_str());
-                printf("\n");
-
+//                printf("%5d\t", item.first);
+//                for(auto column: item.second)
+//                    printf("%15s\t", column.c_str());
+//                printf("\n");
 
                 test_data data;
                 //data.record_id = item.first;
@@ -261,11 +259,12 @@ namespace gruut
 
         void setBlocksByJson()
         {
-            ifstream config_file("/mnt/d/lab/Project/workspace/gruut-storage/test/blocks_test.json");
+            ifstream config_file("/home/skmoon/workspace/gruut-storage/test/blocks_test.json");
             if(!config_file) {
                 cout << "ifstream error... Please check config file path" << endl;
                 return;
             }
+
             string config_content( (istreambuf_iterator<char>(config_file)), istreambuf_iterator<char>() );
             json js = json::parse(config_content);
 
@@ -756,6 +755,7 @@ namespace gruut
         }
         void testForward(Block block)
         {
+            cout << "--------------- test Forward called -----------------" << endl;
             parseBlockToLayer(block);
             pushLayer();
             m_current_layer.clear();

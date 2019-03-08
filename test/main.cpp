@@ -93,8 +93,6 @@ int DB_test() {
 
 int main()
 {
-
-    /*
     gruut::Storage g_storage;
 
     g_storage.setBlocksByJson();
@@ -110,7 +108,6 @@ int main()
 //    test.makePath("mang", "coin", "btc");
 //    test.makePath("mang", "coin", "gru");
 
-     */
 
     DB_test();
 
