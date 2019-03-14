@@ -1,11 +1,11 @@
 #include <iostream>
 #include <cstring>
 #include <sstream>
-#include <storage_lib.hpp>
-#include "json.hpp"
+#include "../storage/storage_lib.hpp"
+#include "nlohmann/json.hpp"
 #include "sha256.h"
-#include "db_lib.hpp"
-#include "merkle_lib.hpp"
+#include "../storage/db_lib.hpp"
+#include "../storage/merkle_lib.hpp"
 
 using namespace std;
 

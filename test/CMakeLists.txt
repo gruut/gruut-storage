@@ -7,11 +7,11 @@ include_directories(/usr/include/mysql)
 link_libraries(mysqlclient)
 link_directories(/usr/lib/x86_64-linux-gnu)
 
-include_directories(../lib)
-include_directories(../lib/sha256)
+include_directories(../include)
+include_directories(../include/sha256)
 
-add_executable(workspace_temp main.cpp ../lib/db_lib.hpp ../lib/merkle_lib.hpp ../lib/sha256/sha256.cpp)
-# add_executable(workspace_temp main.cpp ../lib/storage_lib.hpp ../lib/db_lib.hpp ../lib/merkle_lib.hpp ../lib/sha256/sha256.cpp)
+add_executable(workspace_temp main.cpp ../storage/db_lib.hpp ../storage/merkle_lib.hpp ../include/sha256/sha256.cpp)
+# add_executable(workspace_temp main.cpp ../include/storage_lib.hpp ../include/db_lib.hpp ../include/merkle_lib.hpp ../include/sha256/sha256.cpp)
 
 
 
