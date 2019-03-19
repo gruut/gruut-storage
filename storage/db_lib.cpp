@@ -6,6 +6,29 @@
 
 namespace gruut {
 
+    void parseJson::parse_json_from_smart_contract(string json_data) {
+        cout << "parse_json_from_smart_contract is called!!!" << endl;
+        json js;
+        js = json::parse(json_data);
+
+        pKindOfTransaction = js["kind_of_transaction"];
+        pFromUserId = js["from_user_id"];
+        pFromVarType = js["from_var_type"];
+        pFromVarName = js["from_var_name"];
+        pToUserId = js["to_user_id"];
+        pToVarType = js["to_var_type"];
+        pToVarName = js["to_var_name"];
+        pValue = js["value"];
+
+        /*
+        cout << pKindOfTransaction << " / "
+        << pFromUserId << " / " << pFromVarName << " / "
+        << pToUserId << " / " << pToVarName << " / "
+        << pValue << endl;
+        */
+    }
+
+
     int mariaDb::connectionSetup() {
         MYSQL *connection = mysql_init(NULL);
         if (!mysql_real_connect(connection, getServerIp().c_str(), getAdmin().c_str(), getPassword().c_str(), getDatabase().c_str(), atoi(getPort().c_str()), NULL, 0)) {

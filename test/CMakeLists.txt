@@ -12,8 +12,6 @@ include_directories(../include/nlohmann)
 include_directories(../include/sha256)
 
 add_executable(workspace_temp main.cpp ../storage/db_lib.cpp ../storage/merkle_lib.cpp ../storage/storage_lib.cpp ../include/sha256/sha256.cpp)
-# add_executable(workspace_temp main.cpp ../include/storage_lib.hpp ../include/db_lib.hpp ../include/merkle_lib.hpp ../include/sha256/sha256.cpp)
-
 
 
 

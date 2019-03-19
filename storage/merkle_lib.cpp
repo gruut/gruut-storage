@@ -408,17 +408,24 @@ namespace gruut {
             right = parent->getRight();
 
             if (left != nullptr && right != nullptr)    break;          // left, right 가 모두 존재하면 머클 루트까지 rehash 시작
-            else if (left == nullptr)   parent->overwriteNode(right);   // right 만 존재하면 parent 를 right 로 덮어씌움
-            else if (right == nullptr)  parent->overwriteNode(left);    // left 만 존재하면 parent 를 left 로 덮어씌움
+            else if (right != nullptr) {                                // right 만 존재하면 parent 를 right 로 덮어씌움
+                if (!right->isDummy()) parent->overwriteNode(right);
+                else break;
+            }
+            else if (left != nullptr) {                                 // left 만 존재하면 parent 를 left 로 덮어씌움
+                if (!left->isDummy())  parent->overwriteNode(left);
+                else break;
+            }
 
             if (stk.empty())    break;
             else                parent = stk.top(); stk.pop();
         } while(true);
 
-        while (!stk.empty()) {
-            parent->reHash();
 
+        parent->reHash();
+        while (!stk.empty()) {
             parent = stk.top(); stk.pop();
+            parent->reHash();
         }
         m_size--;
     }
