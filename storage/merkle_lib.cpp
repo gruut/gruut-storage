@@ -184,6 +184,8 @@ namespace gruut {
         m_debug_path = node->getDebugPath();
         m_suffix_len = node->getSuffixLen();
         moveToParent(); // suffix, suffix_len, path 값 수정
+
+        delete node;
     }
 
 
