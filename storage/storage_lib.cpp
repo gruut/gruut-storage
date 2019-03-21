@@ -506,8 +506,9 @@ namespace gruut {
         if (depth == NO_DATA) {
             cout << "[ERROR] Storage::delCommand() - Can't find data" << endl;
             status = DATA_NOT_EXIST;
+            return status;
         }
-        if (depth == DB_DATA) {
+        else if (depth == DB_DATA) {
             pair<int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(user_id, var_type, var_name);
             val.var_value = data.second[VAR_VALUE];
             val.path = (uint) stoul(data.second[PATH]);
@@ -597,7 +598,22 @@ namespace gruut {
 //            //applyFrontLayer();
         //testShow("mizno", "coin", "gru");
         //testShow("kjh", "coin", "btc");
+//
+        testForward(blocks[2]);
+        m_tree.printTreePostOrder();
 
+        testBackward();
+        m_tree.printTreePostOrder();
+
+//        testForward(blocks[3]);
+//
+//        testForward(blocks[4]);
+//
+//        testForward(blocks[5]);
+//
+//        testForward(blocks[6]);
+//
+//        testForward(blocks[7]);
         testBackward();
         m_tree.printTreePostOrder();
 //            testShow("mizno", "coin", "gru");

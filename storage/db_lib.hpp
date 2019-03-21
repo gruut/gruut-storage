@@ -30,27 +30,7 @@ namespace gruut {
         int pValue;
 
     public:
-        void parse_json_from_smart_contract(string json_data) {
-            cout << "parse_json_from_smart_contract is called!!!" << endl;
-            json js;
-            js = json::parse(json_data);
-
-            pKindOfTransaction = js["kind_of_transaction"];
-            pFromUserId = js["from_user_id"];
-            pFromVarType = js["from_var_type"];
-            pFromVarName = js["from_var_name"];
-            pToUserId = js["to_user_id"];
-            pToVarType = js["to_var_type"];
-            pToVarName = js["to_var_name"];
-            pValue = js["value"];
-
-            /*
-            cout << pKindOfTransaction << " / "
-            << pFromUserId << " / " << pFromVarName << " / "
-            << pToUserId << " / " << pToVarName << " / "
-            << pValue << endl;
-            */
-        }
+        void parse_json_from_smart_contract(string json_data);
 
         string getPKindOfTransaction() { return pKindOfTransaction; }
         string getPFromUserId() { return pFromUserId; }
