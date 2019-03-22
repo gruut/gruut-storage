@@ -8,7 +8,7 @@ string toHex(int num)
 {
     string str_hex;
     stringstream ss;
-    ss << hex << num;
+    ss << setfill('0') << setw(2) << hex << num;
     ss >> str_hex;
     return str_hex;
 }
@@ -40,60 +40,28 @@ char* intToBin(uint num) {
 
     return ret;
 }
-// Debugging
-vector<uint8_t> makeValueDebug(string key) {
-    vector<uint8_t> ret;
-    string value = sha256(key);
 
-    uint8_t tmp;
-    ret.clear();
-    for(int i = 0; i < value.length() / 2; ++i) {
-        tmp = (uint8_t) strtoul(value.substr(i*2, 2).c_str(), NULL, 16);
-        ret.push_back(tmp);
-    }
-    return ret;
-}
-vector<uint8_t> getHash(string l_value, string r_value)
-{
-    vector<uint8_t> value;
-    if (l_value == "")
-        value = makeValueDebug(r_value);
-    else if (r_value == "")
-        value = makeValueDebug(l_value);
-    else
-        value = makeValueDebug(l_value + r_value);
-
-    return value;
-}
-
-ostream& operator<<(ostream &os, vector<uint8_t> &value)
-{
-    os << valueToStr(value);
-    return os;
-}
+//ostream& operator<<(ostream &os, vector<uint8_t> &value)
+//{
+//    os << valueToStr(value);
+//    return os;
+//}
 
 namespace gruut {
 
     void MerkleNode::makeValue(test_data data) {
         //string key = to_string(data.record_id) + data.user_id + data.var_name + data.var_type + data.var_value;
-        string key = data.user_id + data.var_type + data.var_name  + data.var_value;
+        string key = data.user_id + data.var_type + data.var_name + data.var_value;
         makeValue(key);
     }
     void MerkleNode::makeValue(string key) {
-        string value = sha256(key);
-
-        uint8_t tmp;
-        m_value.clear();
-        for(int i = 0; i < value.length() / 2; ++i) {
-            tmp = (uint8_t) strtoul(value.substr(i*2, 2).c_str(), NULL, 16);
-            m_value.push_back(tmp);
-        }
+        m_value = Sha256::hash(key);
     }
     uint MerkleNode::makePath(test_data data) {
         //string key = to_string(data.record_id) + data.user_id + data.var_name;
         //cout<<"makePath"<<endl;
         string key = data.user_id + data.var_type + data.var_name;
-        string value = sha256(key);
+        string value = valueToStr(Sha256::hash(key));
         value = value.substr(value.length() - _SHA256_SPLIT - 1, value.length());
         uint path = (uint) strtoul(value.c_str(), 0, 16);
         uint mask = (1 << _TREE_DEPTH) - 1;

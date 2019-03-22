@@ -6,15 +6,15 @@
 #define WORKSPACE_MERKLE_LIB_HPP
 
 #include <vector>
-#include <string>
+#include <iomanip>
 #include <sstream>
 #include <stack>
 #include <stdio.h>
 #include <stdlib.h>
-#include "sha256/sha256.h"
+#include "../utils/sha256.hpp"
 
 using namespace std;
-
+using hash_t = std::vector<uint8_t>;
 
 
 // TODO: define 값 변경
