@@ -88,10 +88,10 @@ namespace gruut {
         string l_value = "", r_value = "";
 
         if (getLeft() != nullptr) {
-            l_value = valueToStr(getLeft()->getValue());
+            l_value = Sha256::toString(getLeft()->getValue());
         }
         if (getRight() != nullptr) {
-            r_value = valueToStr(getRight()->getValue());
+            r_value = Sha256::toString(getRight()->getValue());
         }
 
         reHash(l_value, r_value);
@@ -187,7 +187,7 @@ namespace gruut {
             if (isPrint) {
                 printf("%s%s\t", _debug_str_dir.substr(0, _debug_depth).c_str(), str_dir.c_str());
                 printf("[path: %s] suffix_len: %d, suffix: %s,  hash_value: %s\n",
-                       intToBin(node->getDebugPath()), node->getSuffixLen(), intToBin(node->getSuffix()), valueToStr(node->getValue()).c_str());
+                       intToBin(node->getDebugPath()), node->getSuffixLen(), intToBin(node->getSuffix()), Sha256::toString(node->getValue()).c_str());
             }
             stk.push(node);
         }
@@ -489,7 +489,7 @@ namespace gruut {
         postOrder(root, isPrint);
 
         if(isPrint) {
-            printf("root Value: %s\n", valueToStr(root->getValue()).c_str());
+            printf("root Value: %s\n", Sha256::toString(root->getValue()).c_str());
             printf("*********** finish traversal ***********\n");
         }
 
