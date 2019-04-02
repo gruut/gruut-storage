@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(workspace)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(/usr/include/mysql)
 include_directories(/usr/local/lib)
@@ -16,12 +16,15 @@ include_directories(/usr/local/include/botan-2)
 
 file(GLOB SOURCE_FILES
         "../storage/*.cpp"
+        "../include/*.cpp"
         )
 
 file(GLOB HEADER_FILES
+        "../chain/*.hpp"
         "../storage/*.hpp"
         "../include/*.hpp"
         "../include/*/*.hpp"
+        "../utils/*.hpp"
         )
 
 add_executable(workspace_temp main.cpp ${SOURCE_FILES} ${HEADER_FILES})

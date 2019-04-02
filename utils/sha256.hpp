@@ -1,5 +1,5 @@
-#ifndef GRUUT_ENTERPRISE_MERGER_SHA_256_HPP
-#define GRUUT_ENTERPRISE_MERGER_SHA_256_HPP
+#ifndef GRUUT_UTILS_SHA_256_HPP
+#define GRUUT_UTILS_SHA_256_HPP
 
 #include <botan-2/botan/base64.h>
 #include <botan-2/botan/hash.h>
@@ -7,47 +7,46 @@
 #include <string>
 #include <vector>
 
+#include "type_converter.hpp"
+
 using namespace std;
 
 class Sha256 {
-  using hash_t = std::vector<uint8_t>;
+    using hash_t = vector<uint8_t>;
 
 public:
-  static hash_t hash(const string &message) {
-    std::vector<uint8_t> v(message.begin(), message.end());
-    return hash(v);
-  }
+    inline static bool isMatch(string_view target_message, const hash_t &hashed_message) {
+      auto hashed_target_message = hash(target_message);
+      bool result = hashed_target_message == hashed_message;
 
-  static bool isMatch(const string &target_message,
-                      const hash_t &hashed_message) {
-    auto hashed_target_message = Sha256::hash(target_message);
-    bool result = hashed_target_message == hashed_message;
+      return result;
+    }
 
-    return result;
-  }
+    inline static hash_t hash(string_view message) {
+      auto msg_bytes = TypeConverter::stringToBytes(message);
+      return hash(msg_bytes);
+    }
 
-  static string toString(hash_t hashed_list) {
-    return Botan::base64_encode(hashed_list);
-  }
+    static hash_t hash(vector<uint8_t> &&msg_bytes) {
+      return hash(msg_bytes);
+    }
 
-  static hash_t hash(std::vector<uint8_t> &&data) { return hash(data); }
+    static hash_t hash(vector<uint8_t> &msg_bytes) {
+      unique_ptr<Botan::HashFunction> hash_function(Botan::HashFunction::create("SHA-256"));
+      hash_function->update(msg_bytes);
 
-  static hash_t hash(std::vector<uint8_t> &data) {
-    std::unique_ptr<Botan::HashFunction> hash_function(
-        Botan::HashFunction::create("SHA-256"));
-    hash_function->update(data);
-    return hash_function->final_stdvec();
-  }
+      return hash_function->final_stdvec();
+    }
 
-  template <size_t S> static hash_t hash(std::array<uint8_t, S> &data) {
-    std::unique_ptr<Botan::HashFunction> hash_function(
-        Botan::HashFunction::create("SHA-256"));
+    template <size_t S>
+    static hash_t hash(array<uint8_t, S> &msg_bytes_array) {
+      unique_ptr<Botan::HashFunction> hash_function(Botan::HashFunction::create("SHA-256"));
 
-    std::vector<uint8_t> data_vec(data.begin(), data.end());
+      auto msg_bytes = vector<uint8_t>(msg_bytes_array.begin(), msg_bytes_array.end());
 
-    hash_function->update(data_vec);
-    return hash_function->final_stdvec();
-  }
+      hash_function->update(msg_bytes);
+      return hash_function->final_stdvec();
+    }
 };
 
 #endif
