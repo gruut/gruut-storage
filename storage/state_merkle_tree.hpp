@@ -45,24 +45,24 @@ ostream& operator<<(ostream &os, vector<uint8_t> &value);
 
 namespace gruut {
 
-    class MerkleNode {
+    class StateMerkleNode {
     private:
-        MerkleNode *m_left;
-        MerkleNode *m_right;
+        StateMerkleNode *m_left;
+        StateMerkleNode *m_right;
         uint m_suffix;    // TODO: 비트 확장
         //string m_value;     // TODO: 비트 확장
         vector<uint8_t> m_value;
         uint m_debug_path;      // 노드 분기 시 필요할 것으로 예상됨
         int m_debug_uid;          // 테스트 용도
         int m_suffix_len;
-        //MerkleNode *m_next;
+        //StateMerkleNode *m_next;
 
         void makeValue(test_data data);
         void makeValue(string key);
         uint makePath(test_data data);
 
     public:
-        MerkleNode(test_data data = {"TEST", "TEST", "TEST", "TEST"});
+        StateMerkleNode(test_data data = {"TEST", "TEST", "TEST", "TEST"});
         void reHash();
         void reHash(string l_value, string r_value);
 
@@ -74,23 +74,23 @@ namespace gruut {
         //bool isLeaf()   { return ((m_debug_uid != -1) && (m_suffix_len == 0)); }
 
         /* setter */
-        void setLeft(MerkleNode *node);
-        void setRight(MerkleNode *node);
-        //void setNext(MerkleNode *node)  { m_next  = node;}
+        void setLeft(StateMerkleNode *node);
+        void setRight(StateMerkleNode *node);
+        //void setNext(StateMerkleNode *node)  { m_next  = node;}
         void setSuffix(uint _path, int pos);
         void setDebugPath(uint _path);
         void setNodeInfo(test_data data);
-        void overwriteNode(MerkleNode *node);
+        void overwriteNode(StateMerkleNode *node);
 
         /* getter */
-        MerkleNode* getLeft()   { return m_left; }
-        MerkleNode* getRight()  { return m_right; }
+        StateMerkleNode* getLeft()   { return m_left; }
+        StateMerkleNode* getRight()  { return m_right; }
         uint getSuffix()        { return m_suffix; }
         vector<uint8_t> getValue()       { return m_value; }
         uint getDebugPath()     { return m_debug_path; }
         //int getDebugUid()       { return m_debug_uid; }
         int getSuffixLen()      { return m_suffix_len; }
-        //MerkleNode* getNext() { return m_next; }
+        //StateMerkleNode* getNext() { return m_next; }
 
         // for Debugging (DB에 path 값 초기 세팅용도)
         //uint makePath(int record_id, string user_id, string var_name)
@@ -98,11 +98,11 @@ namespace gruut {
     };
 
 
-    class MerkleTree {
+    class StateMerkleTree {
     private:
-        MerkleNode *root;
+        StateMerkleNode *root;
         ullint m_size;
-        stack<MerkleNode *> stk;    // leaf 에서 root 까지의 해쉬 재 계산을 위해 MerkleNode *를 기억해두는 변수
+        stack<StateMerkleNode *> stk;    // leaf 에서 root 까지의 해쉬 재 계산을 위해 StateMerkleNode *를 기억해두는 변수
 
         bool _debug_dir;
         int _debug_depth;
@@ -112,24 +112,24 @@ namespace gruut {
         // LSB 에서 pos 번째 bit 를 반환
         // 반환 값이 false 면 left 방향이고 true 면 right 방향임
         bool getDirectionOf(uint path, int pos);
-        void visit(MerkleNode *node, bool isPrint);
+        void visit(StateMerkleNode *node, bool isPrint);
 
         // tree post-order 순회 재귀함수
-        void postOrder(MerkleNode *node, bool isPrint=true);
+        void postOrder(StateMerkleNode *node, bool isPrint=true);
 
     public:
-        MerkleTree()
+        StateMerkleTree()
         {
-            root = new MerkleNode();
+            root = new StateMerkleNode();
             m_size = 0;
         }
 
         // TODO: DB 와 연동하여 완성한 이후에는 new_path 파라미터 제거
         void addNode(uint new_path, test_data data);
-        void addNode(uint new_path, MerkleNode *new_node);
+        void addNode(uint new_path, StateMerkleNode *new_node);
         void modifyNode(uint path, test_data data);
         void removeNode(uint path);
-        MerkleNode* getMerkleNode(uint _path);
+        StateMerkleNode* getMerkleNode(uint _path);
         vector< vector<uint8_t> > getSiblings(uint _path);
 
         // Debugging
@@ -141,8 +141,8 @@ namespace gruut {
         ullint getSize()   { return m_size; }
         vector<uint8_t> getRootValue()   { return root->getValue(); }
         string getRootValueStr()   { return valueToStr(root->getValue()); }
-        MerkleNode* getRoot()   { return root; }
-        stack<MerkleNode *> getStack() { return stk; }
+        StateMerkleNode* getRoot()   { return root; }
+        stack<StateMerkleNode *> getStack() { return stk; }
 
     };
 }

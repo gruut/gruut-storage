@@ -7,8 +7,8 @@
 
 #include "easy_logging.hpp"
 
-#include "mem_ledger.hpp"
 #include "../utils/template_singleton.hpp"
+#include "mem_ledger.hpp"
 #include "storage.hpp"  // 변경 필요. 현 구현되어있는 storage와 새로 구현하는 storage 를 잘 끼워맞춰야 한다...
 
 namespace gruut {
@@ -19,7 +19,7 @@ namespace gruut {
         mem_ledger_t m_mem_ledger;
 
     public:
-        LayeredStorage() {
+        StorageManager() {
             el::Loggers::getLogger("LAYS");
             m_storage = Storage::getInstance();
         }
@@ -40,11 +40,6 @@ namespace gruut {
             m_mem_ledger.push(key, value, block_id_b64);
 
             return true;
-        }
-
-        template <typename V = std::vector<std::string>>
-        void setBlockLayer(V &&block_layer = {}) {
-            m_block_layer = block_layer;
         }
 
         template <typename T = std::string, typename V = block_layer_t>
@@ -75,7 +70,7 @@ namespace gruut {
 
         void clearLedger() { m_mem_ledger.clear(); }
 
-        template <typename T = std::string> void moveToDiskLedger(T &&block_id_b64) {
+        template <typename T = std::string> void moveToDiskLedger(T &&block_id_b64) {   // 이 함수 바꿔야함
             auto kv_vector = m_mem_ledger.getKV(block_id_b64);
 
             for (auto &each_record : kv_vector) {

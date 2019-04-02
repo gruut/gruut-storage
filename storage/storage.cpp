@@ -1,44 +1,54 @@
-//
-// Created by ISRL-JH on 2018-12-28.
-//
-
-#include "storage_lib.hpp"
+#include "storage.hpp"
 
 namespace gruut {
 
-    ostream& operator<< (ostream& os, Key& key)
+    Storage::Storage()
     {
-        os << key.user_id << ", " << key.var_type << ", " << key.var_name;
-        return os;
+        readConfig();
+        setupDB();
+        setupMerkleTree();
+
+        el::Loggers::getLogger("STRG");
+
+        auto setting = Setting::getInstance();
+        m_db_path = setting->getMyDbPath();
+
+        m_options.block_cache = leveldb::NewLRUCache(100 * 1048576); // 100MB cache
+        m_options.create_if_missing = true;
+        m_write_options.sync = true;
+
+        boost::filesystem::create_directories(m_db_path);
+
+        // clang-format off
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_HEADER, &m_db_block_header));
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_RAW, &m_db_block_raw));
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_LATEST, &m_db_latest_block_header));
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_TRANSACTION, &m_db_transaction));
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_IDHEIGHT, &m_db_blockid_height));
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_LEDGER, &m_db_ledger));
+        errorOnCritical(leveldb::DB::Open(m_options, m_db_path + "/" + config::DB_SUB_DIR_BACKUP,&m_db_backup));
+        // clang-format on
     }
 
-    ostream& operator<< (ostream& os, const Key& key)
+    Storage::~Storage()
     {
-        os << key.user_id << ", " << key.var_type << ", " << key.var_name;
-        return os;
-    }
+        destroyDB();
 
-    ostream& operator<<(ostream& os, Value& value)
-    {
-        os << value.var_value << ", " << intToBin(value.path) << "(" << value.path << ")" << ", isDeleted: " << value.isDeleted;
-        return os;
-    }
+        delete m_db_block_header;
+        delete m_db_block_raw;
+        delete m_db_latest_block_header;
+        delete m_db_transaction;
+        delete m_db_blockid_height;
+        delete m_db_ledger;
+        delete m_db_backup;
 
-    ostream& operator<<(ostream& os, Layer& layer)
-    {
-        int t_num = 0;
-        os << "Transaction..." << endl;
-        for(auto transaction: layer.transaction)
-        {
-            os << "Transaction #" << t_num << " \t" << transaction << '\n';
-            t_num++;
-        }
-        os << "Temporary_data..." << endl;
-        for(auto data: layer.m_temporary_data)
-        {
-            os << "Key: " << data.first.user_id << ", " << data.first.var_type << ", " << data.first.var_name << ", Value: " << data.second << endl;
-        }
-        return os;
+        m_db_block_header = nullptr;
+        m_db_block_raw = nullptr;
+        m_db_latest_block_header = nullptr;
+        m_db_transaction = nullptr;
+        m_db_blockid_height = nullptr;
+        m_db_ledger = nullptr;
+        m_db_backup = nullptr;
     }
 
     void Storage::readConfig()
@@ -137,79 +147,6 @@ namespace gruut {
 
     }
 
-    void Storage::pushLayer() {
-        // 꽉 차있으면 Front layer 를 DB 에 반영 시킨 다음 push back 수행
-        if (m_layer.size() == MAX_LAYER_SIZE) {
-            cout << "Layer size MAX... call applyFrontLayer()" << endl;
-            applyFrontLayer();
-        }
-        m_layer.push_back(m_current_layer);
-    }
-
-    Layer Storage::popFrontLayer()
-    {
-        Layer front_layer;
-        if (!m_layer.empty()) {
-            front_layer = m_layer.front();
-            m_layer.pop_front();
-        }
-        else {
-            cout << "[ERROR] popFrontLayer() - storage::m_layer variable is empty!\n";
-            exit(1);
-        }
-        return front_layer;
-    }
-
-    Layer Storage::popBackLayer()
-    {
-        Layer back_layer;
-        if (!m_layer.empty()) {
-            back_layer = m_layer.back();
-            m_layer.pop_back();
-        }
-        else {
-            cout << "[ERROR] storage::m_layer variable is empty!\n";
-            exit(1);
-        }
-        return back_layer;
-    }
-
-    void Storage::applyFrontLayer()
-    {
-        cout << "------------apply Front Layer--------------" << endl;
-        Layer front_layer = popFrontLayer();
-        for(auto data: front_layer.m_temporary_data)
-        {
-            Key key = data.first;
-            Value value = data.second;
-
-            cout << key << ", " << value << endl;
-
-            if (value.isDeleted) {
-                m_server.deleteData( key.user_id, key.var_type, key.var_name );
-                // 삭제 진행
-            }
-            else {
-
-                if ( !m_server.checkUserIdVarTypeVarName(&key.user_id, &key.var_type, &key.var_name) ) { // DB 에 데이터 존재 -> update 수행
-                    m_server.updateVarValue( key.user_id, key.var_type, key.var_name, value.var_value );
-                }
-                else {  // DB 에 데이터 없음 -> insert 수행
-                    m_server.insert(key.block_id, key.user_id, key.var_type, key.var_name, value.var_value, to_string(value.path));
-                }
-            }
-        }
-
-        // layer 체크 코드
-//            cout << "Layer size : " << m_layer.size() << endl;
-//            for(auto layer: m_layer) {
-//                cout << "applyFront, Layer" << endl;
-//                for (auto data: layer.m_temporary_data) {
-//                    cout << "\t\tData - ";
-//                    cout << data.first << ", " << data.second << endl;
-//                }
-//            }
-    }
 
     // block 을 한줄씩 읽으며 데이터와 머클트리 갱신, m_current_layer 갱신
     void Storage::parseBlockToLayer(Block block)
@@ -583,47 +520,14 @@ namespace gruut {
     {
         testForward(blocks[0]);
         m_tree.printTreePostOrder();
-        //applyFrontLayer();
-        //testShow("mizno", "coin", "gru");
-        //testShow("mang", "coin", "gru");
+
         testForward(blocks[1]);
         m_tree.printTreePostOrder();
-        //applyFrontLayer();
-        //testShow("mizno", "coin", "gru");
-        //testShow("mang", "coin", "gru");
-        //testShow("kjh", "coin", "btc");
-        //testShow("kjh", "coin", "gru
-//            testForward(blocks[2]);
-//            m_tree.printTreePostOrder();
-//            //applyFrontLayer();
-        //testShow("mizno", "coin", "gru");
-        //testShow("kjh", "coin", "btc");
-//
-        testForward(blocks[2]);
-        m_tree.printTreePostOrder();
 
         testBackward();
         m_tree.printTreePostOrder();
 
-//        testForward(blocks[3]);
-//
-//        testForward(blocks[4]);
-//
-//        testForward(blocks[5]);
-//
-//        testForward(blocks[6]);
-//
-//        testForward(blocks[7]);
-        testBackward();
-        m_tree.printTreePostOrder();
-//            testShow("mizno", "coin", "gru");
-//            testBackward();
-//            testShow("mizno", "coin", "gru");
 
-        //testForward(blocks[3]);
-        //applyFrontLayer();
-        //testForward(blocks[4]);
-        //testForward(blocks[5]);
     }
 
     void Storage::testForward(Block block)
@@ -692,36 +596,4 @@ namespace gruut {
         }
     }
 
-    void Storage::testShow(string user_id, string var_type, string var_name)
-    {
-        Key key(user_id, var_type, var_name);
-        Value val;
-        int depth = checkLayer(key);
-        map<Key, Value>::iterator it;
-
-        if(depth == NO_DATA) {
-            cout << "Can't find " << key << endl;
-        }
-        else {
-            if (depth == DB_DATA) {
-                cout << "[DB] ";
-                pair<int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(user_id, var_type,
-                                                                                              var_name);
-
-                val.var_value = data.second[VAR_VALUE];
-                val.path = (uint) stoul(data.second[PATH]);
-                val.isDeleted = false;
-            } else if (depth == CUR_DATA) {
-                cout << "[Current Layer] ";
-                it = m_current_layer.m_temporary_data.find(key);
-                val = it->second;
-            } else {
-                cout << "[Layer " << depth << "] ";
-                it = m_layer[depth].m_temporary_data.find(key);
-                val = it->second;
-            }
-
-            cout << key << ", " << val << endl;
-        }
-    }
 }

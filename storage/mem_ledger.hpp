@@ -5,6 +5,8 @@
 #ifndef WORKSPACE_MEM_LEDGER_HPP
 #define WORKSPACE_MEM_LEDGER_HPP
 
+#include "easy_logging.hpp"
+
 #include <list>
 #include <memory>
 #include <mutex>
@@ -56,7 +58,7 @@ namespace gruut {
                 }
             }
 
-            m_ledger.insert(m_ledger.end(), mem_ledger.begin(), mem_ledger.end());
+            m_ledger.insert(m_ledger.end(), mem_ledger.begin(), mem_ledger.end());  // mem_ledger(지역변수)의 내용들을 m_ledger의 뒤에 추가
 
             return true;
         }
