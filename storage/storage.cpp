@@ -6,7 +6,6 @@ namespace gruut {
     {
         readConfig();
         setupDB();
-        setupMerkleTree();
 
         el::Loggers::getLogger("STRG");
 
@@ -66,8 +65,6 @@ namespace gruut {
 
     void Storage::setupDB()
     {
-        gruut::parseJson pJ;
-
         string serverIp = "127.0.0.1";
         string serverPort = "3306";
         string admin = "gruut_user";
@@ -84,29 +81,6 @@ namespace gruut {
             cout << "setupDB function failed.." << endl;
             exit(1);
         }
-    }
-
-    void Storage::setupMerkleTree()
-    {
-        vector< pair< int, vector<string> > > all = m_server.selectAll();
-        for(auto item: all)
-        {
-//                printf("%5d\t", item.first);
-//                for(auto column: item.second)
-//                    printf("%15s\t", column.c_str());
-//                printf("\n");
-
-            test_data data;
-            //data.record_id = item.first;
-            data.user_id = item.second[USER_ID];
-            data.var_type = item.second[VAR_TYPE];
-            data.var_name = item.second[VAR_NAME];
-            data.var_value = item.second[VAR_VALUE];
-            uint path = (uint) stoul(item.second[PATH]);
-            m_tree.addNode(path, data);
-        }
-
-        m_tree.printTreePostOrder();
     }
 
     void Storage::destroyDB()
@@ -331,54 +305,6 @@ namespace gruut {
 
                 status = addCommand(new_transaction, to_val);
             }
-
-
-
-
-//                map<Key, Value>::iterator to_it;
-//                map<Key, Value>::iterator from_it;
-//
-//                // from user 데이터 획득
-//                if (from_depth == DB_DATA) {
-//                    pair< int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(from_user_id, from_var_type, from_var_name);
-//                    from_val.var_value = data.second[VAR_VALUE];
-//                    from_val.path = (uint) stoul(data.second[PATH]);
-//                    from_val.isDeleted = false;
-//                }
-//                else if (from_depth == CUR_DATA) {
-//                    from_it = m_current_layer.m_temporary_data.find(from_key);
-//                    from_val = from_it->second;
-//                }
-//                else {
-//                    from_it = m_layer[depth].m_temporary_data.find(from_key);
-//                    from_val = from_it->second;
-//                }
-//
-//                // to user 데이터 획득
-//                if (to_depth == DB_DATA) {
-//                    pair< int, vector<string> > data = m_server.selectAllUsingUserIdVarTypeVarName(to_user_id, to_var_type, to_var_name);
-//                    to_val.var_value = data.second[VAR_VALUE];
-//                    to_val.path = (uint) stoul(data.second[PATH]);
-//                    to_val.isDeleted = false;
-//                }
-//                else if (to_depth == CUR_DATA) {
-//                    to_it = m_current_layer.m_temporary_data.find(to_key);
-//                    to_val = to_it->second;
-//                }
-//                else {
-//                    to_it = m_layer[depth].m_temporary_data.find(to_key);
-//                    to_val = to_it->second;
-//                }
-//
-//                // from user 데이터 체크
-//                // to user 는 음수가 될 수 없으므로 체크안함
-//                if (stoi(from_val.var_value) + value < 0) {
-//                    cout << "from user: " << from_user_id << " doesn't have enough value" << endl;
-//                    status = COIN_VALUE;
-//                }
-//                else {
-//
-//                }
         }
 
         return status;
@@ -595,5 +521,4 @@ namespace gruut {
             }
         }
     }
-
 }

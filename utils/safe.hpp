@@ -1,8 +1,9 @@
-#ifndef GRUUT_ENTERPRISE_MERGER_SAFE_HPP
-#define GRUUT_ENTERPRISE_MERGER_SAFE_HPP
+#ifndef GRUUT_PUBLIC_SAFE_HPP
+#define GRUUT_PUBLIC_SAFE_HPP
 
 #include "type_converter.hpp"
 #include "nlohmann/json.hpp"
+#include "../chain/types.hpp"
 
 class Safe {
 public:
@@ -115,11 +116,20 @@ public:
 
     template <typename T = gruut::bytes, typename S = nlohmann::json,
             typename K = std::string>
+    static T getBytesFromB58(S &&json_obj, K &&key) {
+        std::string parse_str = getString(json_obj, key);
+        if (parse_str.empty())
+            return T();
+        return static_cast<T>(TypeConverter::decodeBase<58>(parse_str));
+    }
+
+    template <typename T = gruut::bytes, typename S = nlohmann::json,
+            typename K = std::string>
     static T getBytesFromB64(S &&json_obj, K &&key) {
         std::string parse_str = getString(json_obj, key);
         if (parse_str.empty())
             return T();
-        return static_cast<T>(TypeConverter::decodeBase64(parse_str));
+        return static_cast<T>(TypeConverter::decodeBase<64>(parse_str));
     }
 };
 

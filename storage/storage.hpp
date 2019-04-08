@@ -1,14 +1,39 @@
 #ifndef WORKSPACE_STORAGE_HPP
 #define WORKSPACE_STORAGE_HPP
 
+#include "leveldb/cache.h"
+#include "leveldb/db.h"
+#include "leveldb/options.h"
+#include "leveldb/write_batch.h"
+#include "nlohmann/json.hpp"
+#include "easy_logging.hpp"
+
+#include "../chain/tx_merkle_tree.hpp"
+#include "../chain/types.hpp"
+#include "../utils/bytes_builder.hpp"
+#include "../utils/rsa.hpp"
+#include "../utils/safe.hpp"
+#include "../utils/sha256.hpp"
+#include "../utils/template_singleton.hpp"
+#include "../utils/time.hpp"
+
+#include "setting.hpp"
+
+#include <botan-2/botan/asn1_time.h>
+#include <botan-2/botan/auto_rng.h>
+#include <botan-2/botan/data_src.h>
+#include <botan-2/botan/exceptn.h>
+#include <botan-2/botan/pkcs8.h>
+#include <botan-2/botan/pubkey.h>
+#include <botan-2/botan/rsa.h>
+#include <botan-2/botan/x509cert.h>
+
+#include <boost/filesystem/operations.hpp>
+#include <cmath>
+#include <iostream>
+#include <map>
 #include <fstream>      // ifstream 클래스
 #include <deque>
-#include <map>
-
-#include "../utils/template_singleton.hpp"
-#include "easy_logging.hpp"
-#include "state_merkle_tree.hpp"
-#include "db_lib.hpp"
 
 using namespace std;
 using json = nlohmann::json;
@@ -23,15 +48,32 @@ enum {NO_DATA=-2, DB_DATA=-1, CUR_DATA=_D_CUR_LAYER};
 namespace gruut {
 
     class Storage : public TemplateSingleton<Storage> {
+
     private:
         int MAX_LAYER_SIZE;
-        StateMerkleTree m_tree;
         mariaDb m_server;
+        string m_db_path;
 
-        void readConfig();
-        void setupDB();
-        void setupMerkleTree();
-        void destroyDB();
+        leveldb::Options m_options;
+        leveldb::WriteOptions m_write_options;
+        leveldb::ReadOptions m_read_options;
+
+        leveldb::DB *m_db_block_header;
+        leveldb::DB *m_db_block_raw;
+        leveldb::DB *m_db_latest_block_header;
+        leveldb::DB *m_db_transaction;
+        leveldb::DB *m_db_blockid_height;
+        leveldb::DB *m_db_ledger;
+        leveldb::DB *m_db_backup;
+
+        leveldb::WriteBatch m_batch_block_header;
+        leveldb::WriteBatch m_batch_block_raw;
+        leveldb::WriteBatch m_batch_latest_block_header;
+        leveldb::WriteBatch m_batch_transaction;
+        leveldb::WriteBatch m_batch_blockid_height;
+        leveldb::WriteBatch m_batch_ledger;
+        leveldb::WriteBatch m_batch_backup;
+    };
 
     public:
         Storage();
@@ -48,7 +90,25 @@ namespace gruut {
         void testStorage();
         void testForward(Block block);
         void testBackward();
-    };
+
+
+
+        bool saveLedger(const std::string &key, const std::string &value);
+        std::string readLedgerByKey(const std::string &key);
+        void clearLedger();
+        void flushLedger();
+        bool empty();
+
+        void saveBackup(const std::string &key, const std::string &value);
+        std::string readBackup(const std::string &key);
+        void flushBackup();
+        void clearBackup();
+        void delBackup(const std::string &block_id_b64);
+
+    private:
+        void readConfig();
+        void setupDB();
+        void destroyDB();
 }
 
 #endif //WORKSPACE_STORAGE_HPP

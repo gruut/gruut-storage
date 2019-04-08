@@ -271,47 +271,6 @@ namespace gruut {
     }
 
 
-    int mariaDb::transferMoney(string fromUserId, string fromVarType, string fromVarName, string toUserId, string toVarType, string toVarName, int value) {
-
-        cout << fromUserId << " / " << fromVarName << " / " << toUserId << " / " << toVarName << " / " << value << endl;
-
-        if(checkBalance(&fromUserId, &fromVarName, &value) == 0) {
-            int fromBal;
-            int toBal;
-
-            query = "SELECT var_value FROM ledger WHERE user_id='" + fromUserId + "' AND var_name='" + fromVarName + "'";
-            if(performQuery(query) == 0) {
-                columns = mysql_num_fields(res); // the number of field
-                if((row = mysql_fetch_row(res)) != NULL) {
-                    fromBal = atoi(row[0]);
-                }
-            }
-            // cout << fromBal << endl;
-            mysql_free_result(res);
-
-            query = "SELECT var_value FROM ledger WHERE user_id='" + toUserId + "' AND var_name='" + toVarName + "'";
-            if(performQuery(query) == 0) {
-                columns = mysql_num_fields(res); // the number of field
-                if((row = mysql_fetch_row(res)) != NULL) {
-                    toBal = atoi(row[0]);
-                }
-            }
-            // cout << toBal << endl;
-            mysql_free_result(res);
-
-            updateVarValue(fromUserId, fromVarType, fromVarName, to_string(fromBal-value)); // user_id, var_name and var_value of Database
-            updateVarValue(toUserId, toVarType, toVarName, to_string(toBal+value)); // user_id, var_name and var_value of Database
-
-            mysql_free_result(res);
-            return 0;
-        } else {
-            mysql_free_result(res);
-            return 1;
-        }
-        mysql_free_result(res);
-        return 1;
-    }
-
     int mariaDb::checkBalance(string *userId, string *varName, int *value) {
         // can check the etc, btc and gru and so on whether it is enough or not
         query = "SELECT var_value FROM ledger WHERE user_id='" + *userId + "' AND var_name='" + *varName + "'";;
@@ -332,61 +291,6 @@ namespace gruut {
         mysql_free_result(res);
         return 1;
     }
-
-//    int mariaDb::layerInsert(string blockId, string scContents) {
-//        cout << "previous data" << endl;
-//        if(layerSelectAll() < 10) {
-//            query = "INSERT INTO layer (block_id, sc_contents) VALUES('" + blockId + "', '" + scContents + "')";
-//            if(performQuery(query) == 0) {
-//                cout << "layerInsert() function was processed!!!" << endl;
-//                mysql_free_result(res);
-//                return 0;
-//            } else {
-//                cout << "layerInsert() function was not processed!!!" << endl;
-//                mysql_free_result(res);
-//                return 1;
-//            }
-//            mysql_free_result(res);
-//            return 0;
-//        } else {
-//            cout << "layer is full, so can insert more" << endl;
-//        }
-//        return 0;
-//    }
-//
-//    int mariaDb::layerDelete(string blockId, string scContents) {
-//        query = "DELETE FROM layer WHERE block_id='" + blockId + "' AND sc_contents='" + scContents + "'";
-//        if(performQuery(query) == 0) {
-//            cout << "layerDelete() function was processed!!!" << endl;
-//            mysql_free_result(res);
-//            return 0;
-//        } else {
-//            cout << "layerDelete() function was not processed!!!" << endl;
-//            mysql_free_result(res);
-//            return 1;
-//        }
-//        mysql_free_result(res);
-//        return 0;
-//    }
-//
-//    int mariaDb::layerSelectAll() {
-//        int numLayer = 0;
-//        query = "SELECT * FROM layer ORDER BY record_id";
-//        if(performQuery(query) == 0) {
-//            columns = mysql_num_fields(res); // the number of field
-//            while((row = mysql_fetch_row(res)) != NULL) {
-//                numLayer++;
-//                printf("%15s\t", row[0]);
-//                for(i=1; i<columns; i++) {
-//                    printf("%15s\t", row[i]);
-//                }
-//                printf("\n");
-//            }
-//        }
-//        // cout << numLayer << endl;
-//        mysql_free_result(res);
-//        return numLayer;
-//    }
 
     int mariaDb::blockInsert(string blockId, string blockHash) {
         query = "INSERT INTO block (block_id, block_hash) VALUES('" + blockId + "', '" + blockHash + "')";

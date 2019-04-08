@@ -23,7 +23,7 @@ namespace gruut {
         timestamp_t m_sent_time;
         requestor_id_type m_requestor_id;
         TransactionType m_transaction_type;
-        signature_type m_signature;
+        base64_type m_signature;
         std::vector<content_type> m_content_list;
 
     public:
@@ -33,7 +33,7 @@ namespace gruut {
 
         Transaction(tx_id_type transaction_id, timestamp_t sent_time,
                     requestor_id_type &requestor_id, TransactionType transaction_type,
-                    signature_type &signature,
+                    base64_type &signature,
                     std::vector<content_type> &content_list)
                 : m_transaction_id(transaction_id), m_sent_time(sent_time),
                   m_requestor_id(requestor_id), m_transaction_type(transaction_type),
@@ -63,11 +63,11 @@ namespace gruut {
         }
 
         json getJson() {
-            return json({{"txid", TypeConverter::encodeBase64(m_transaction_id)},
+            return json({{"txid", TypeConverter::encodeBase<64>(m_transaction_id)},
                          {"time", to_string(m_sent_time)},
-                         {"rID", TypeConverter::encodeBase64(m_requestor_id)},
+                         {"rID", TypeConverter::encodeBase<64>(m_requestor_id)},
                          {"type", txTypeToStr(m_transaction_type)},
-                         {"rSig", TypeConverter::encodeBase64(m_signature)},
+                         {"rSig", TypeConverter::encodeBase<64>(m_signature)},
                          {"content", m_content_list}});
         }
 
@@ -78,7 +78,7 @@ namespace gruut {
         tx_id_type getId() { return m_transaction_id; }
 
         std::string getIdB64() {
-            return TypeConverter::encodeBase64(m_transaction_id);
+            return TypeConverter::encodeBase<64>(m_transaction_id);
         }
 
         std::string getIdStr() {
@@ -101,7 +101,7 @@ namespace gruut {
 
         TransactionType getTransactionType() { return m_transaction_type; }
 
-        template <typename T = signature_type> void setSignature(T &&signature) {
+        template <typename T = base64_type> void setSignature(T &&signature) {
             m_signature = signature;
         }
 

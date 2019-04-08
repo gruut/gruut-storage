@@ -133,23 +133,27 @@ constexpr auto TRANSACTION_ID_TYPE_SIZE = 32;
 constexpr auto CHAIN_ID_TYPE_SIZE = 8;
 using tx_id_type = std::array<uint8_t, TRANSACTION_ID_TYPE_SIZE>;
 using localchain_id_type = std::array<uint8_t, CHAIN_ID_TYPE_SIZE>;
+using world_id_type = std::array<uint8_t, CHAIN_ID_TYPE_SIZE>;
 
 using block_height_type = size_t;
 using block_header_hash_type = hash_t;
-using block_id_type = hash_t;
+using block_id_type = std::string;
 using block_version_type = uint32_t;
 using transaction_root_type = hash_t;
-using signature_type = bytes;
 using header_length_type = uint32_t;
 using content_type = std::string;
 using hmac_key_type = Botan::secure_vector<uint8_t>;
 using block_layer_t = std::vector<std::string>;
 
+using txagg_cbor_b64 = std::string;
+
+using base58_type = std::string;
+using base64_type = std::string;
+
 // All of the blows are the same type. Use them according to the context.
 // If you cannot distinguish it, just use id_type
 using requestor_id_type = bytes;
 using merger_id_type = bytes;
-using signer_id_type = bytes;
 using servend_id_type = bytes;
 using id_type = bytes;
 

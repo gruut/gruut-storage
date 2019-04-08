@@ -60,12 +60,13 @@ namespace gruut {
             move_head(new_block.block_prev_id, );     // head를 옮겨야 할 경우
         }
 
+
         // 새로운 블럭에 대한 정보 입력을 완료한다(state root 값 입력 등)
         // result의 json을 받아서 파싱하는것도 여기에서 해야한다.
         // 그 결과로 임시 ledger에 대한 정보도 여기에서 입력해야 함
         // resolved 검사를 언제 할지는 여기서 할지 push에서 할지 조금 더 생각해볼 필요 있음
 
-        m_storage_manager->saveLedger();
+
 
     }
 
@@ -165,7 +166,30 @@ namespace gruut {
             where_to_go[0].first, where_to_go[0].second;    // front를 하기 위한 방향 저장된것.
         }
 
+    }
 
+
+    void UnresolvedBlockPool::setupStateTree()      // RDB에 있는 모든 노드를 불러올 수 있어야 하므로 관련 연동 필요
+    {
+        vector< pair< int, vector<string> > > all = m_server.selectAll();
+        for(auto item: all)
+        {
+//                printf("%5d\t", item.first);
+//                for(auto column: item.second)
+//                    printf("%15s\t", column.c_str());
+//                printf("\n");
+
+            test_data data;
+            //data.record_id = item.first;
+            data.user_id = item.second[USER_ID];
+            data.var_type = item.second[VAR_TYPE];
+            data.var_name = item.second[VAR_NAME];
+            data.var_value = item.second[VAR_VALUE];
+            uint path = (uint) stoul(item.second[PATH]);
+            m_state_tree.addNode(path, data);
+        }
+
+        m_state_tree.printTreePostOrder();
     }
 }
 
