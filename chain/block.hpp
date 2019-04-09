@@ -3,6 +3,7 @@
 
 #include "tx_merkle_tree.hpp"
 #include "signature.hpp"
+#include "certificate.hpp"
 #include "transaction.hpp"
 #include "types.hpp"
 
@@ -28,8 +29,8 @@ namespace gruut {
         base58_type m_block_prev_id;
         base64_type m_block_hash;
 
-        std::vector<txagg_cbor_b64> m_txagg;           // txagg_cbor_b64 < 이 형태로 날아옴. 여기서 처리할 필요 없음.
-        std::vector<Transaction> m_transactions;    // 어차피 RDB 블록/트랜잭션 정보에 넣어야하기 때문에 일단 유지. 불필요할 수 있음.
+        std::vector<txagg_cbor_b64> m_txagg;        // Tx의 Json을 CBOR로 처리하고 그 데이터를 b64인코딩한 결과 vector
+        std::vector<Transaction> m_transactions;    // RDB 블록/트랜잭션 정보에 넣어야하기 때문에 유지. tx_root 계산할 때에도 사용
 
         base64_type m_aggz;     // aggregate signature 에 필요함
 
@@ -38,10 +39,10 @@ namespace gruut {
         base64_type m_cs_state_root;
         base64_type m_sg_root;
 
-        std::vector<Signature> m_signers;    // <signer_id, signer_sig> 형태. map으로 바꿔야 할 수도 있음.
-        std::map<base58_type, std::string> m_user_certs;
+        std::vector<Signature> m_signers;           // <signer_id, signer_sig> 형태
+        std::vector<Certificate> m_user_certs;      // <cert_id, cert_content> 형태
 
-        Signature m_block_prod_info;        // 마찬가지로 <signer_id, signer_sig> 형태
+        Signature m_block_prod_info;        // <signer_id, signer_sig> 형태
 
         bytes m_block_raw;
 
@@ -69,28 +70,24 @@ namespace gruut {
             m_block_prev_id = Safe::getString(msg_block["block"], "pid");
             m_block_hash = Safe::getString(msg_block["block"], "hash");
 
-            m_aggz = ;
+            setTxaggs(msg_block["tx"]);
+            setTransaction(m_txagg);   // txagg에서 트랜잭션 정보를 뽑아낸다
 
-            m_tx_root = ;
-            m_us_state_root = ;
-            m_cs_state_root = ;
-            m_sg_root = ;
+            m_aggz = Safe::getString(msg_block, "aggz");
 
+            m_tx_root = Safe::getString(msg_block["state"], "txroot");          // 추후 계산, 검증 필요
+            m_us_state_root = Safe::getString(msg_block["state"], "usroot");    // 추후 계산, 검증 필요
+            m_cs_state_root = Safe::getString(msg_block["state"], "csroot");    // 추후 계산, 검증 필요
+            m_sg_root = Safe::getString(msg_block["state"], "sgroot");;         // 추후 계산, 검증 필요
 
-            m_signers = ;
-            m_user_certs = ;
-
-            m_block_prod_info = ;
-
-            m_block_raw = ;
-
-
-
-            if (!setSupportSignaturesFromJson(msg_block["SSig"]))
+            if (!setSigners(msg_block["signer"]))
                 return false;
+            setUserCerts(msg_block["certificate"]);
 
-            if (!setTransactions(block_txs))
-                return false;
+            m_block_prod_info.signer_id = Safe::getString(msg_block["producer"], "id");
+            m_block_prod_info.signer_signature = Safe::getString(msg_block["producer"], "sig");
+
+//          m_block_raw = ;     // 이건 어떻게 처리하지..
 
             return true;
         }
@@ -107,48 +104,53 @@ namespace gruut {
 
             m_txagg.clear();
             for (auto &each_tx_json : txs_json) {
-                m_txagg.emplace_back(each_tx_json);     // 부정확할 수 있음
+                m_txagg.emplace_back(each_tx_json);
             }
-
             return true;
         }
 
-        bool setSupportSignatures(std::vector<Signature> &ssigs) {
-            if (ssigs.empty())
-                return false;
-            m_signers = ssigs;
-            return true;
-        }
+        bool setTransaction(std::vector<txagg_cbor_b64> &txagg) {
+            m_transactions.clear();
+            for (auto &each_txagg : txagg) {
+                json each_txs_json;
+                each_txs_json = json::from_cbor(TypeConverter::decodeBase<64>(each_txagg));
 
-        bool setSupportSignaturesFromJson(json &ssigs) {
-            if (!ssigs.is_array())
-                return false;
-
-            m_signers.clear();
-            for (auto &each_ssig : ssigs) {
-                Signature tmp;
-                tmp.signer_id = Safe::getString(each_ssig["signer"], "id");
-                tmp.signer_signature =
-                        Safe::getString(each_ssig["signer"], "sig");
-                m_signers.emplace_back(tmp);
+                Transaction each_tx;
+                each_tx.setJson(each_txs_json);
+                m_transactions.emplace_back(each_tx);
             }
-
             return true;
         }
 
-        bool setSupportSignaturesFromJson(json &ssigs) {
-            if (!ssigs.is_array())
+        bool setSupportSignatures(std::vector<Signature> &signers) {
+            if (signers.empty())
+                return false;
+            m_signers = signers;
+            return true;
+        }
+
+        bool setSigners(json &signers) {
+            if (!signers.is_array())
                 return false;
 
             m_signers.clear();
-            for (auto &each_ssig : ssigs) {
+            for (auto &each_signer : signers) {
                 Signature tmp;
-                tmp.signer_id = Safe::getString(each_ssig["signer"], "id");
-                tmp.signer_signature =
-                        Safe::getString(each_ssig["signer"], "sig");
+                tmp.signer_id = Safe::getString(each_signer, "id");
+                tmp.signer_signature = Safe::getString(each_signer, "sig");
                 m_signers.emplace_back(tmp);
             }
+            return true;
+        }
 
+        bool setUserCerts(json &certificates) {
+            m_user_certs.clear();
+            for (auto &each_cert : certificates) {
+                Certificate tmp;
+                tmp.cert_id = Safe::getString(each_cert, "id");
+                tmp.cert_content = Safe::getString(each_cert, "cert");
+                m_user_certs.emplace_back(tmp);
+            }
             return true;
         }
 
@@ -161,8 +163,6 @@ namespace gruut {
             }
             return ret_txids;
         }
-
-
 
         block_height_type getHeight() { return m_block_height; }
         size_t getNumTransactions() { return m_txagg.size(); }
@@ -179,129 +179,6 @@ namespace gruut {
         string getPrevBlockIdB58() { return m_block_prev_id; }
 
         bytes getBlockRaw() { return m_block_raw; }
-
-
-        // Support signature cannot be verified unless storage or block itself has
-        // suitable certificates Therefore, the verification of support signatures
-        // should be delayed until the previous block has been saved.
-        bool isValidLate(
-                std::function<std::string(std::string &, timestamp_t)> &get_user_cert) {
-            // step - check support signatures
-            bytes ssig_msg_after_sid = getSupportSigMessageCommon();
-
-            for (auto &each_ssig : m_ssigs) {
-                BytesBuilder ssig_msg_builder;
-                ssig_msg_builder.append(each_ssig.signer_id);
-                ssig_msg_builder.append(ssig_msg_after_sid);
-
-                std::string user_id_b64 =
-                        TypeConverter::encodeBase64(each_ssig.signer_id);
-                std::string user_pk_pem;
-
-                auto it_map = m_user_certs.find(user_id_b64);
-                if (it_map != m_user_certs.end()) {
-                    user_pk_pem = it_map->second;
-                } else {
-                    user_pk_pem =
-                            get_user_cert(user_id_b64, m_time); // this is from storage
-                }
-
-                if (user_pk_pem.empty()) {
-                    CLOG(ERROR, "BLOC") << "No suitable user certificate";
-                    return false;
-                }
-
-                if (!ECDSA::doVerify(user_pk_pem, ssig_msg_builder.getBytes(),
-                                     each_ssig.signer_signature)) {
-                    CLOG(ERROR, "BLOC") << "Invalid support signature";
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        bool isValidEarly(std::function<std::string(id_type &)> &get_cert) {
-
-            if (m_block_raw.empty() || m_signature.empty()) {
-                CLOG(ERROR, "BLOC") << "Empty blockraw or signature";
-                return false;
-            }
-
-            // step - check merkle tree
-            if (m_tx_root != m_tx_root.back()) {
-                CLOG(ERROR, "BLOC") << "Invalid Merkle-tree root";
-                return false;
-            }
-
-            // step - transactions
-
-            for (auto &each_tx : m_transactions) {
-                id_type requster_id = each_tx.getRequesterId();
-                std::string pk_cert = get_cert(requster_id);
-                if (!each_tx.isValid(pk_cert)) {
-                    CLOG(ERROR, "BLOC") << "Invalid transaction";
-                    return false;
-                }
-            }
-
-            // step - check merger's signature
-
-            std::string merger_pk_cert = get_cert(m_block_prod_id);
-
-            if (merger_pk_cert.empty()) {
-                CLOG(ERROR, "BLOC") << "No suitable merger certificate";
-                return false;
-            }
-
-            bytes meta_header_raw = getBlockMetaHeaderRaw(m_block_raw);
-
-            if (!ECDSA::doVerify(merger_pk_cert, meta_header_raw, m_signature)) {
-
-                CLOG(ERROR, "BLOC") << "Invalid merger signature";
-                return false;
-            }
-
-            return true;
-        }
-
-
-    private:
-
-//        bytes getSupportSigMessageCommon() {
-//            BytesBuilder ssig_msg_common_builder;
-//            ssig_msg_common_builder.append(m_block_time);
-//            ssig_msg_common_builder.append(m_block_prod_id);
-//            ssig_msg_common_builder.append(m_chain_id);
-//            ssig_msg_common_builder.append(m_block_height);
-//            ssig_msg_common_builder.append(m_tx_root);
-//            return ssig_msg_common_builder.getBytes();
-//        }
-
-        std::vector<hash_t> calcTxMerkleTreeNode() {
-            std::vector<hash_t> merkle_tree_node;
-            std::vector<hash_t> tx_digests;
-
-            for (auto &each_tx : m_transactions) {
-                tx_digests.emplace_back(each_tx.getDigest());
-            }
-
-            TxMerkleTree merkle_tree;
-            merkle_tree.generate(tx_digests);
-            merkle_tree_node = merkle_tree.getTxMerkleTree();
-            return merkle_tree_node;
-        }
-
-        std::map<std::string, std::string> extractUserCertsIf() {
-            std::map<std::string, std::string> ret_map;
-            for (auto &each_tx : m_transactions) {
-                std::map<std::string, std::string> tx_user_certs = each_tx.getCertsIf();
-                if (!tx_user_certs.empty())
-                    ret_map.insert(tx_user_certs.begin(), tx_user_certs.end());
-            }
-
-            return ret_map;
-        }
 
     };
 } // namespace gruut
