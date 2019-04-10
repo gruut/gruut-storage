@@ -1,14 +1,14 @@
 #ifndef WORKSPACE_STORAGE_HPP
 #define WORKSPACE_STORAGE_HPP
 
+#include "easy_logging.hpp"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
 #include "leveldb/options.h"
 #include "leveldb/write_batch.h"
 #include "nlohmann/json.hpp"
-#include "easy_logging.hpp"
 
-#include "../chain/tx_merkle_tree.hpp"
+#include "../chain/static_merkle_tree.hpp"
 #include "../chain/types.hpp"
 #include "../utils/bytes_builder.hpp"
 #include "../utils/rsa.hpp"
@@ -30,10 +30,10 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <cmath>
+#include <deque>
+#include <fstream> // ifstream 클래스
 #include <iostream>
 #include <map>
-#include <fstream>      // ifstream 클래스
-#include <deque>
 
 using namespace std;
 using json = nlohmann::json;
@@ -41,74 +41,72 @@ using json = nlohmann::json;
 typedef unsigned int uint;
 
 #define _D_CUR_LAYER 4
-enum {BLOCK_ID, USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH};
-enum {SUCCESS=0, COIN_VALUE=-1, DATA_DUPLICATE=-2, DATA_NOT_EXIST=-3};
-enum {NO_DATA=-2, DB_DATA=-1, CUR_DATA=_D_CUR_LAYER};
+enum { BLOCK_ID, USER_ID, VAR_TYPE, VAR_NAME, VAR_VALUE, PATH };
+enum { SUCCESS = 0, COIN_VALUE = -1, DATA_DUPLICATE = -2, DATA_NOT_EXIST = -3 };
+enum { NO_DATA = -2, DB_DATA = -1, CUR_DATA = _D_CUR_LAYER };
 
 namespace gruut {
 
-    class Storage : public TemplateSingleton<Storage> {
+class Storage : public TemplateSingleton<Storage> {
 
-    private:
-        int MAX_LAYER_SIZE;
-        mariaDb m_server;
-        string m_db_path;
+private:
+  int MAX_LAYER_SIZE;
+  mariaDb m_server;
+  string m_db_path;
 
-        leveldb::Options m_options;
-        leveldb::WriteOptions m_write_options;
-        leveldb::ReadOptions m_read_options;
+  leveldb::Options m_options;
+  leveldb::WriteOptions m_write_options;
+  leveldb::ReadOptions m_read_options;
 
-        leveldb::DB *m_db_block_header;
-        leveldb::DB *m_db_block_raw;
-        leveldb::DB *m_db_latest_block_header;
-        leveldb::DB *m_db_transaction;
-        leveldb::DB *m_db_blockid_height;
-        leveldb::DB *m_db_ledger;
-        leveldb::DB *m_db_backup;
+  leveldb::DB *m_db_block_header;
+  leveldb::DB *m_db_block_raw;
+  leveldb::DB *m_db_latest_block_header;
+  leveldb::DB *m_db_transaction;
+  leveldb::DB *m_db_blockid_height;
+  leveldb::DB *m_db_ledger;
+  leveldb::DB *m_db_backup;
 
-        leveldb::WriteBatch m_batch_block_header;
-        leveldb::WriteBatch m_batch_block_raw;
-        leveldb::WriteBatch m_batch_latest_block_header;
-        leveldb::WriteBatch m_batch_transaction;
-        leveldb::WriteBatch m_batch_blockid_height;
-        leveldb::WriteBatch m_batch_ledger;
-        leveldb::WriteBatch m_batch_backup;
-    };
+  leveldb::WriteBatch m_batch_block_header;
+  leveldb::WriteBatch m_batch_block_raw;
+  leveldb::WriteBatch m_batch_latest_block_header;
+  leveldb::WriteBatch m_batch_transaction;
+  leveldb::WriteBatch m_batch_blockid_height;
+  leveldb::WriteBatch m_batch_ledger;
+  leveldb::WriteBatch m_batch_backup;
+};
 
-    public:
-        Storage();
-        ~Storage();
+public:
+Storage();
+~Storage();
 
-        void setBlocksByJson();
+void setBlocksByJson();
 
-        void parseBlockToLayer(Block block);
-        int addCommand(json transaction, Value &val);
-        int sendCommand(json transaction);
-        int newCommand(json transaction);
-        int delCommand(json transaction);
+void parseBlockToLayer(Block block);
+int addCommand(json transaction, Value &val);
+int sendCommand(json transaction);
+int newCommand(json transaction);
+int delCommand(json transaction);
 
-        void testStorage();
-        void testForward(Block block);
-        void testBackward();
+void testStorage();
+void testForward(Block block);
+void testBackward();
 
+bool saveLedger(const std::string &key, const std::string &value);
+std::string readLedgerByKey(const std::string &key);
+void clearLedger();
+void flushLedger();
+bool empty();
 
+void saveBackup(const std::string &key, const std::string &value);
+std::string readBackup(const std::string &key);
+void flushBackup();
+void clearBackup();
+void delBackup(const std::string &block_id_b64);
 
-        bool saveLedger(const std::string &key, const std::string &value);
-        std::string readLedgerByKey(const std::string &key);
-        void clearLedger();
-        void flushLedger();
-        bool empty();
+private:
+void readConfig();
+void setupDB();
+void destroyDB();
+} // namespace gruut
 
-        void saveBackup(const std::string &key, const std::string &value);
-        std::string readBackup(const std::string &key);
-        void flushBackup();
-        void clearBackup();
-        void delBackup(const std::string &block_id_b64);
-
-    private:
-        void readConfig();
-        void setupDB();
-        void destroyDB();
-}
-
-#endif //WORKSPACE_STORAGE_HPP
+#endif // WORKSPACE_STORAGE_HPP

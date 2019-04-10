@@ -6,7 +6,7 @@
 #include <string>
 
 namespace gruut {
-    namespace config {
+namespace config {
 
 // clang-format off
 
@@ -67,6 +67,6 @@ namespace gruut {
 
 // clang-format on
 
-    } // namespace config
+} // namespace config
 } // namespace gruut
 #endif

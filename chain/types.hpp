@@ -13,14 +13,7 @@
 
 namespace gruut {
 
-enum class BpStatus {
-  IN_BOOT_WAIT,
-  IDLE,
-  PRIMARY,
-  SECONDARY,
-  ERROR_ON_SIGNERS,
-  UNKNOWN
-};
+enum class BpStatus { IN_BOOT_WAIT, IDLE, PRIMARY, SECONDARY, ERROR_ON_SIGNERS, UNKNOWN };
 
 enum class TransactionType { DIGESTS, CERTIFICATES, IMMORTALSMS, UNKNOWN };
 
@@ -28,11 +21,10 @@ const std::string TXTYPE_CERTIFICATES = "CERTIFICATES";
 const std::string TXTYPE_DIGESTS = "DIGESTS";
 const std::string TXTYPE_IMMORTALSMS = "IMMORTALSMS";
 
-const std::map<TransactionType, std::string> TX_TYPE_TO_STRING = {
-    {TransactionType::DIGESTS, TXTYPE_DIGESTS},
-    {TransactionType::CERTIFICATES, TXTYPE_CERTIFICATES},
-    {TransactionType::IMMORTALSMS, TXTYPE_IMMORTALSMS},
-    {TransactionType::UNKNOWN, "UNKNOWN"}};
+const std::map<TransactionType, std::string> TX_TYPE_TO_STRING = {{TransactionType::DIGESTS, TXTYPE_DIGESTS},
+                                                                  {TransactionType::CERTIFICATES, TXTYPE_CERTIFICATES},
+                                                                  {TransactionType::IMMORTALSMS, TXTYPE_IMMORTALSMS},
+                                                                  {TransactionType::UNKNOWN, "UNKNOWN"}};
 
 enum class MessageType : uint8_t {
   MSG_NULL = 0x00,
@@ -89,25 +81,12 @@ enum class ErrorMsgType : int {
   NO_SUCH_BLOCK = 89
 };
 
-enum class CompressionAlgorithmType : uint8_t {
-  LZ4 = 0x04,
-  MessagePack = 0x05,
-  CBOR = 0x06,
-  NONE = 0xFF
-};
+enum class CompressionAlgorithmType : uint8_t { LZ4 = 0x04, MessagePack = 0x05, CBOR = 0x06, NONE = 0xFF };
 
 enum class SignerStatus { UNKNOWN, TEMPORARY, ERROR, GOOD };
 
 // DB
-enum class DBType : int {
-  BLOCK_HEADER,
-  BLOCK_HEIGHT,
-  BLOCK_RAW,
-  BLOCK_LATEST,
-  TRANSACTION,
-  LEDGER,
-  BLOCK_BACKUP
-};
+enum class DBType : int { BLOCK_HEADER, BLOCK_HEIGHT, BLOCK_RAW, BLOCK_LATEST, TRANSACTION, LEDGER, BLOCK_BACKUP };
 
 enum class BlockState { RECEIVED, TOSAVE, TODELETE, RETRIED, RESERVED };
 
@@ -195,8 +174,7 @@ using unblk_push_result_type = struct _unblk_push_result_type {
 using merger_height_type = struct _merger_height_type {
   id_type merger_id;
   block_height_type height;
-  _merger_height_type(id_type merger_id_, block_height_type height_)
-      : merger_id(std::move(merger_id_)), height(height_) {}
+  _merger_height_type(id_type merger_id_, block_height_type height_) : merger_id(std::move(merger_id_)), height(height_) {}
 };
 
 } // namespace gruut

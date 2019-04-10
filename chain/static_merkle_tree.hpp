@@ -4,11 +4,11 @@
 #include <map>
 #include <vector>
 
-#include "transaction.hpp"
 #include "../config/config.hpp"
 #include "../utils/bytes_builder.hpp"
 #include "../utils/sha256.hpp"
 #include "../utils/type_converter.hpp"
+#include "transaction.hpp"
 #include "types.hpp"
 
 using namespace std;
@@ -34,52 +34,49 @@ const std::map<std::string, std::string> HASH_LOOKUP_B64 = {
 static std::map<bytes, hash_t> HASH_LOOKUP = {};
 // clang-format on
 
-class TxMerkleTree {
-public:
-  TxMerkleTree() { prepareLookUpTable(); }
+class StaticMerkleTree {
+private:
+  vector<hash_t> m_merkle_tree;
 
-  TxMerkleTree(vector<hash_t> &tx_digests) {
+public:
+  StaticMerkleTree() {
     prepareLookUpTable();
-    generate(tx_digests);
   }
 
-  void generate(vector<hash_t> &tx_digests) {
+  StaticMerkleTree(vector<hash_t> &merkle_contents) {
+    prepareLookUpTable();
+    generate(merkle_contents);
+  }
+
+  void generate(vector<hash_t> &merkle_contents) {
     const bytes dummy_leaf(32, 0); // for SHA-256
 
-    auto min_addable_size = min(MAX_MERKLE_LEAVES, tx_digests.size());
+    auto min_addable_size = min(MAX_MERKLE_LEAVES, merkle_contents.size());
 
     for (size_t i = 0; i < min_addable_size; ++i)
-      m_merkle_tree[i] = tx_digests[i];
+      m_merkle_tree[i] = merkle_contents[i];
 
     for (size_t i = min_addable_size; i < MAX_MERKLE_LEAVES; ++i)
       m_merkle_tree[i] = dummy_leaf;
 
     size_t parent_pos = MAX_MERKLE_LEAVES;
     for (size_t i = 0; i < MAX_MERKLE_LEAVES * 2 - 3; i += 2) {
-      m_merkle_tree[parent_pos] =
-          makeParent(m_merkle_tree[i], m_merkle_tree[i + 1]);
+      m_merkle_tree[parent_pos] = makeParent(m_merkle_tree[i], m_merkle_tree[i + 1]);
       ++parent_pos;
     }
   }
 
-  void generate(vector<Transaction> &transactions) {
-    vector<hash_t> tx_digests;
-    generateTxDigests(tx_digests, transactions);
-    generate(tx_digests);
+  vector<hash_t> getStaticMerkleTree() {
+    return m_merkle_tree;
   }
-
-  vector<hash_t> getTxMerkleTree() { return m_merkle_tree; }
 
   static bool isValidSiblings(proof_type &proof,
-                              const std::string &root_val_b64) {
-    return isValidSiblings(proof.siblings, proof.siblings[0].second,
-                           root_val_b64);
+                              const std::string &root_val_b64) { // 필요한 함수인지 검토 필요
+    return isValidSiblings(proof.siblings, proof.siblings[0].second, root_val_b64);
   }
 
-  static bool
-  isValidSiblings(std::vector<std::pair<bool, std::string>> &siblings_b64,
-                  const std::string &my_val_b64,
-                  const std::string &root_val_b64) {
+  static bool isValidSiblings(std::vector<std::pair<bool, std::string>> &siblings_b64, const std::string &my_val_b64,
+                              const std::string &root_val_b64) {
 
     if (siblings_b64.empty() || my_val_b64.empty() || root_val_b64.empty())
       return false;
@@ -89,18 +86,16 @@ public:
 
     std::vector<std::pair<bool, bytes>> siblings;
     for (auto &sibling_b64 : siblings_b64) {
-      siblings.emplace_back(std::make_pair(
-          sibling_b64.first, TypeConverter::decodeBase64(sibling_b64.second)));
+      siblings.emplace_back(std::make_pair(sibling_b64.first, TypeConverter::decodeBase<64>(sibling_b64.second)));
     }
 
-    bytes my_val = TypeConverter::decodeBase64(my_val_b64);
-    bytes root_val = TypeConverter::decodeBase64(root_val_b64);
+    bytes my_val = TypeConverter::stringToBytes(TypeConverter::decodeBase<64>(my_val_b64));
+    bytes root_val = TypeConverter::stringToBytes(TypeConverter::decodeBase<64>(root_val_b64));
 
     return isValidSiblings(siblings, my_val, root_val);
   }
 
-  static bool isValidSiblings(std::vector<std::pair<bool, bytes>> &siblings,
-                              bytes &my_val, bytes &root_val) {
+  static bool isValidSiblings(std::vector<std::pair<bool, bytes>> &siblings, bytes &my_val, bytes &root_val) {
 
     if (siblings.empty() || my_val.empty() || root_val.empty())
       return false;
@@ -116,11 +111,9 @@ public:
       }
 
       if (siblings[i].first) { // true = right
-        mtree_root.insert(mtree_root.end(), siblings[i].second.begin(),
-                          siblings[i].second.end());
+        mtree_root.insert(mtree_root.end(), siblings[i].second.begin(), siblings[i].second.end());
       } else {
-        mtree_root.insert(mtree_root.begin(), siblings[i].second.begin(),
-                          siblings[i].second.end());
+        mtree_root.insert(mtree_root.begin(), siblings[i].second.begin(), siblings[i].second.end());
       }
 
       mtree_root = Sha256::hash(mtree_root);
@@ -136,8 +129,8 @@ private:
     if (HASH_LOOKUP.size() != HASH_LOOKUP_B64.size()) {
       HASH_LOOKUP.clear();
       for (auto &hash_entry : HASH_LOOKUP_B64) {
-        HASH_LOOKUP.emplace(TypeConverter::decodeBase64(hash_entry.first),
-                            TypeConverter::decodeBase64(hash_entry.second));
+        HASH_LOOKUP.emplace(TypeConverter::stringToBytes(TypeConverter::decodeBase<64>(hash_entry.first)),
+                            TypeConverter::stringToBytes(TypeConverter::decodeBase<64>(hash_entry.second)));
       }
     }
   }
@@ -152,15 +145,6 @@ private:
       return Sha256::hash(left);
     }
   }
-
-  void generateTxDigests(vector<hash_t> &tx_digests,
-                         vector<Transaction> &transactions) {
-    transform(transactions.begin(), transactions.end(),
-              back_inserter(tx_digests),
-              [](Transaction &t) { return t.getDigest(); });
-  }
-
-  vector<hash_t> m_merkle_tree;
 };
 } // namespace gruut
 
