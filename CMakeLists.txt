@@ -28,6 +28,7 @@ file(GLOB HEADER_FILES
         "storage/*.hpp"
         "include/*.hpp"
         "include/*/*.hpp"
+        "lib/*.hpp"
         "utils/*.hpp"
         )
 

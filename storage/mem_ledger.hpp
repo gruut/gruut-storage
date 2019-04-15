@@ -1,9 +1,5 @@
-//
-// Created by msk on 2019-03-29.
-//
-
-#ifndef WORKSPACE_MEM_LEDGER_HPP
-#define WORKSPACE_MEM_LEDGER_HPP
+#ifndef GRUUT_PUBLIC_MERGER_MEM_LEDGER_HPP
+#define GRUUT_PUBLIC_MERGER_MEM_LEDGER_HPP
 
 #include "easy_logging.hpp"
 

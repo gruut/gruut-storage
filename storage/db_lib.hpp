@@ -1,11 +1,7 @@
-//
-// Created by CH on 2018-11-22.
-//
+#ifndef GRUUT_PUBLIC_MERGER_DB_LIB_HPP
+#define GRUUT_PUBLIC_MERGER_DB_LIB_HPP
 
-#ifndef WORKSPACE_DB_LIB_HPP
-#define WORKSPACE_DB_LIB_HPP
-
-#include "nlohmann/json.hpp"
+#include "../lib/json.hpp"
 #include <iostream>
 #include <mysql.h>
 #include <stdio.h>

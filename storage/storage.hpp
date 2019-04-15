@@ -1,12 +1,12 @@
-#ifndef WORKSPACE_STORAGE_HPP
-#define WORKSPACE_STORAGE_HPP
+#ifndef GRUUT_PUBLIC_MERGER_STORAGE_HPP
+#define GRUUT_PUBLIC_MERGER_STORAGE_HPP
 
 #include "easy_logging.hpp"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
 #include "leveldb/options.h"
 #include "leveldb/write_batch.h"
-#include "nlohmann/json.hpp"
+#include "../lib/json.hpp"
 
 #include "../chain/static_merkle_tree.hpp"
 #include "../chain/types.hpp"

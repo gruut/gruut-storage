@@ -1,9 +1,5 @@
-//
-// Created by msk on 2019-03-29.
-//
-
-#ifndef WORKSPACE_STORAGE_MANAGER_HPP
-#define WORKSPACE_STORAGE_MANAGER_HPP
+#ifndef GRUUT_PUBLIC_MERGER_STORAGE_MANAGER_HPP
+#define GRUUT_PUBLIC_MERGER_STORAGE_MANAGER_HPP
 
 #include "easy_logging.hpp"
 

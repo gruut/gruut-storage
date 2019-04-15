@@ -144,7 +144,8 @@ public:
     }
 
     void appendB64(const std::string &b64_str_val, int len = -1) {
-        std::vector<uint8_t> bytes_val = TypeConverter::decodeBase64(b64_str_val);
+        std::vector<uint8_t> bytes_val = TypeConverter::stringToBytes(TypeConverter::decodeBase<64>(b64_str_val);
+      )
         append(bytes_val, len);
     }
 

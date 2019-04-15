@@ -1,9 +1,5 @@
-//
-// Created by ISRL-JH on 2018-12-03.
-//
-
-#ifndef WORKSPACE_MERKLE_LIB_HPP
-#define WORKSPACE_MERKLE_LIB_HPP
+#ifndef GRUUT_PUBLIC_MERGER_STATE_MERKLE_TREE_HPP
+#define GRUUT_PUBLIC_MERGER_STATE_MERKLE_TREE_HPP
 
 #include "../utils/sha256.hpp"
 #include <iomanip>

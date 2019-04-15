@@ -1,7 +1,7 @@
-#ifndef GRUUT_ENTERPRISE_MERGER_TYPES_HPP
-#define GRUUT_ENTERPRISE_MERGER_TYPES_HPP
+#ifndef GRUUT_PUBLIC_MERGER_TYPES_HPP
+#define GRUUT_PUBLIC_MERGER_TYPES_HPP
 
-#include "nlohmann/json.hpp"
+#include "../lib/json.hpp"
 
 #include <botan-2/botan/secmem.h>
 
@@ -101,7 +101,6 @@ enum class ExitCode {
   ERROR_BLOCK_HEALTH_SKIP
 };
 
-using json = nlohmann::json;
 using string = std::string;
 using bytes = std::vector<uint8_t>;
 
@@ -116,7 +115,6 @@ using world_id_type = std::array<uint8_t, CHAIN_ID_TYPE_SIZE>;
 
 using block_height_type = size_t;
 using block_header_hash_type = hash_t;
-using block_id_type = std::string;
 using block_version_type = uint32_t;
 using transaction_root_type = hash_t;
 using header_length_type = uint32_t;
@@ -129,13 +127,6 @@ using txagg_cbor_b64 = std::string;
 using base58_type = std::string;
 using base64_type = std::string;
 
-// All of the blows are the same type. Use them according to the context.
-// If you cannot distinguish it, just use id_type
-using requestor_id_type = bytes;
-using merger_id_type = bytes;
-using servend_id_type = bytes;
-using id_type = bytes;
-
 // Message
 using message_version_type = uint8_t;
 
@@ -145,21 +136,19 @@ using proof_type = struct _proof_type {
 };
 
 using storage_block_type = struct _storage_block_type {
-  block_id_type id;
+  base64_type id;
   hash_t hash;
-  block_id_type prev_id;
+  base64_type prev_id;
   hash_t prev_hash;
   timestamp_t time;
   block_height_type height;
   bytes block_raw;
-  json txs;
+  nlohmann::json txs;
 };
 
 using nth_link_type = struct _nth_link_type {
-  block_id_type id;
-  block_id_type prev_id;
-  hash_t hash;
-  hash_t prev_hash;
+  base64_type id;
+  base64_type prev_id;
   block_height_type height;
   timestamp_t time;
 };
@@ -172,9 +161,9 @@ using unblk_push_result_type = struct _unblk_push_result_type {
 };
 
 using merger_height_type = struct _merger_height_type {
-  id_type merger_id;
+  base58_type merger_id;
   block_height_type height;
-  _merger_height_type(id_type merger_id_, block_height_type height_) : merger_id(std::move(merger_id_)), height(height_) {}
+  _merger_height_type(base58_type merger_id_, block_height_type height_) : merger_id(std::move(merger_id_)), height(height_) {}
 };
 
 } // namespace gruut

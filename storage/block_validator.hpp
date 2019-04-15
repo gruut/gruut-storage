@@ -1,13 +1,39 @@
-//
-// Created by msk on 2019-04-09.
-//
+#ifndef GRUUT_PUBLIC_MERGER_BLOCK_VALIDATOR_HPP
+#define GRUUT_PUBLIC_MERGER_BLOCK_VALIDATOR_HPP
 
 #include "../chain/block.hpp"
 
 namespace gruut {
 
+void calcTransactionSignature() {
+  hash_t txid = Sha256::hash(
+      msg_tx.user.id(256) +
+      msg_tx.world(64) +
+      msg_tx.chain(64) +
+      msg_tx.time(64) +
+      msg_tx.seed(128) +
+      (msg_tx.body.receiver ? msg_tx.body.receiver(256) : '') +
+      (msg_tx.body.fee ? msg_tx.body.fee(64) : '') +
+      msg_tx.body.cid
+  );  // txid까지 검증할 필요가 있나?
+
+  tx_plain = txid(256) + nlohmann::json::to_cbor(msg_tx.body.input);
+
+  string endorser[*].sig = SignByEndorser(
+      tx_plain
+  );
+
+  msg_tx.user.sig = SignByUser(
+      tx_plain + (endoser[*].id + endoser[*].pk + endoser[*].sig)
+  );
+}
+
+void calcMergerSignature() {
+  signByMerger(Sha256::hash( block.time(64) + block.hash(256) + tx.length(32) + signer.length(32) + block.state.sgroot(256) ));
+}
+
 // transaction root, signer group root를 구할 때 쓰이는 고정 크기 머클 트리
-hash_t calcStaticMerkleRoot(std::vector<string> &material) {
+string calcStaticMerkleRoot(std::vector<string> &material) {
 
   std::vector<hash_t> merkle_tree_vector;
   std::vector<hash_t> sha256_material;
@@ -20,7 +46,7 @@ hash_t calcStaticMerkleRoot(std::vector<string> &material) {
   StaticMerkleTree merkle_tree;
   merkle_tree.generate(sha256_material);
   merkle_tree_vector = merkle_tree.getStaticMerkleTree();
-  return merkle_tree_vector.back(); // 가장 뒤에 있는 원소가 root
+  return TypeConverter::encodeBase<64>(merkle_tree_vector.back()); // 가장 뒤에 있는 원소가 root
 }
 
 // user scope, contract scope의 root를 구할 때 쓰이는 동적 머클 트리
@@ -39,16 +65,24 @@ std::map<std::string, std::string> extractUserCertsIf() {
   return ret_map;
 }
 
-bool isValidEarly(std::function<std::string(id_type &)> &get_cert) {
+void countSSig() {
+  ccc;
+}
 
-  if (m_block_raw.empty() || something.empty()) {
-    CLOG(ERROR, "BLOC") << "Empty blockraw or signature";
+void validateSSig() {
+  ddd;
+}
+
+bool earlyStage() {
+
+  if (m_certificate.empty()) {
+    CLOG(ERROR, "BLOC") << "Empty certificate";
     return false;
   }
 
   // step - check tx merkle tree
-  if (m_tx_root != asb.back()) { // 수정 필요
-    CLOG(ERROR, "BLOC") << "Invalid Merkle-tree root";
+  if (m_tx_root != calcStaticMerkleRoot(m_aggz)) { // 인자 수정 필요
+    CLOG(ERROR, "BLOC") << "Invalid Tx Merkle-tree root";
     return false;
   }
 
@@ -84,10 +118,9 @@ bool isValidEarly(std::function<std::string(id_type &)> &get_cert) {
 // Support signature cannot be verified unless storage or block itself has
 // suitable certificates Therefore, the verification of support signatures
 // should be delayed until the previous block has been saved.
-bool isValidLate(std::function<std::string(std::string &, timestamp_t)> &get_user_cert) {
+bool lateStage() {
   // step - check support signatures
   bytes ssig_msg_after_sid = getSupportSigMessageCommon();
-
   for (auto &each_ssig : m_signers) {
     BytesBuilder ssig_msg_builder;
     ssig_msg_builder.append(each_ssig.signer_id);
@@ -116,5 +149,6 @@ bool isValidLate(std::function<std::string(std::string &, timestamp_t)> &get_use
 
   return true;
 }
+
 
 } // namespace gruut
