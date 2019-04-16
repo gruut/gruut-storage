@@ -42,7 +42,7 @@ private:
 
   Signature m_block_prod_info;
 
-  string m_certificate;
+  string m_block_certificate;
 
 public:
   Block() {
@@ -74,16 +74,16 @@ public:
     m_tx_root = json::get<std::string>(msg_block["state"], "txroot").value();
     m_us_state_root = json::get<std::string>(msg_block["state"], "usroot").value();
     m_cs_state_root = json::get<std::string>(msg_block["state"], "csroot").value();
-    m_sg_root = json::get<std::string>(msg_block["state"], "sgroot")
-                    .value()
+    m_sg_root = json::get<std::string>(msg_block["state"], "sgroot").value();
 
-                        if (!setSigners(msg_block["signer"])) return false;
+    if (!setSigners(msg_block["signer"]))
+      return false;
     setUserCerts(msg_block["certificate"]);
 
     m_block_prod_info.signer_id = json::get<std::string>(msg_block["producer"], "id").value();
     m_block_prod_info.signer_signature = json::get<std::string>(msg_block["producer"], "sig").value();
 
-    m_certificate = ; // json.stringfy
+    m_block_certificate = ; // json.stringfy(msg_block["certificate"])
 
     return true;
   }
