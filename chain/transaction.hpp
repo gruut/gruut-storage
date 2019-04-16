@@ -6,6 +6,7 @@
 #include "../utils/bytes_builder.hpp"
 #include "../utils/sha256.hpp"
 #include "../utils/type_converter.hpp"
+#include "endorser.hpp"
 #include "types.hpp"
 
 #include <array>
@@ -29,9 +30,7 @@ private:
   string m_tx_prod_pk;
   base64_type m_tx_prod_sig;
 
-  //
-  // endorser 관련 멤버 변수 추가로 필요
-  //
+  vector<Endorser> m_tx_endorsers;
 
   base64_type m_tx_agg_cbor;
   base58_type m_block_id;
@@ -58,7 +57,7 @@ public:
     setTxProdPk(json::get<string>(tx_json["user"], "pk").value());
     setTxProdSig(json::get<string>(tx_json["user"], "agga").value());
 
-    // 여기에 endorser 관련 코드 추가
+    setEndorsers(tx_json["endorser"]);
 
     // 아래 넷은 tx scope에는 저장되는 사항이지만, json으로 입력되는 내용은 아닌것으로 보임. 검토중.
     //    setTxAggCbor();
@@ -95,7 +94,6 @@ public:
 
   void setTxInput(nlohmann::json input_array) {
     for (auto &each_input : input_array) {
-
     }
   }
 
@@ -109,6 +107,21 @@ public:
 
   void setTxProdSig(base64_type new_tx_prod_sig) {
     m_tx_prod_sig = new_tx_prod_sig;
+  }
+
+  bool setEndorsers(nlohmann::json endorser_array) {
+    if (!endorser_array.is_array())
+      return false;
+
+    m_tx_endorsers.clear();
+    for (auto &each_endorser : endorser_array) {
+      Endorser tmp;
+      tmp.endorser_id = json::get<std::string>(each_endorser, "id").value();
+      tmp.endorser_pk = json::get<std::string>(each_endorser, "pk").value();
+      tmp.endorser_signature = json::get<std::string>(each_endorser, "sig").value();
+      m_tx_endorsers.emplace_back(tmp);
+    }
+    return true;
   }
 
   void setTxAggCbor(string new_txagg_Cbor) {
