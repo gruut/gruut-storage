@@ -10,6 +10,7 @@
 #include "../lib/json.hpp"
 #include "../utils/ecdsa.hpp"
 #include "../utils/lz4_compressor.hpp"
+#include "block_validator.hpp"
 #include "easy_logging.hpp"
 
 using namespace std;
@@ -32,6 +33,7 @@ private:
 
   base64_type m_aggz; // aggregate signature 에 필요함
 
+  vector<hash_t> m_tx_merkle_tree;
   base64_type m_tx_root;
   base64_type m_us_state_root;
   base64_type m_cs_state_root;
@@ -71,6 +73,7 @@ public:
 
     m_aggz = json::get<std::string>(msg_block, "aggz").value();
 
+    m_tx_merkle_tree = makeStaticMerkleTree(m_txagg);
     m_tx_root = json::get<std::string>(msg_block["state"], "txroot").value();
     m_us_state_root = json::get<std::string>(msg_block["state"], "usroot").value();
     m_cs_state_root = json::get<std::string>(msg_block["state"], "csroot").value();
@@ -83,7 +86,7 @@ public:
     m_block_prod_info.signer_id = json::get<std::string>(msg_block["producer"], "id").value();
     m_block_prod_info.signer_signature = json::get<std::string>(msg_block["producer"], "sig").value();
 
-    m_block_certificate = ; // json.stringfy(msg_block["certificate"])
+    m_block_certificate = msg_block["certificate"].dump();
 
     return true;
   }

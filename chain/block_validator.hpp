@@ -1,7 +1,7 @@
 #ifndef GRUUT_PUBLIC_MERGER_BLOCK_VALIDATOR_HPP
 #define GRUUT_PUBLIC_MERGER_BLOCK_VALIDATOR_HPP
 
-#include "../chain/block.hpp"
+#include "block.hpp"
 
 namespace gruut {
 
@@ -15,7 +15,7 @@ void calcTransactionSignature() {
       (msg_tx.body.receiver ? msg_tx.body.receiver(256) : '') +
       (msg_tx.body.fee ? msg_tx.body.fee(64) : '') +
       msg_tx.body.cid
-  );  // txid까지 검증할 필요가 있나?
+  );
 
   tx_plain = txid(256) + nlohmann::json::to_cbor(msg_tx.body.input);
 
@@ -24,7 +24,8 @@ void calcTransactionSignature() {
   );
 
   msg_tx.user.sig = SignByUser(
-      tx_plain + (endoser[*].id + endoser[*].pk + endoser[*].sig)
+      tx_plain + (endoser[*].id + endoser[*].pk + endoser
+      *].sig)
   );
 }
 
@@ -32,8 +33,7 @@ void calcMergerSignature() {
   signByMerger(Sha256::hash( block.time(64) + block.hash(256) + tx.length(32) + signer.length(32) + block.state.sgroot(256) ));
 }
 
-// transaction root, signer group root를 구할 때 쓰이는 고정 크기 머클 트리
-string calcStaticMerkleRoot(std::vector<string> &material) {
+std::vector<hash_t> makeStaticMerkleTree(std::vector<string> &material) {
 
   std::vector<hash_t> merkle_tree_vector;
   std::vector<hash_t> sha256_material;
@@ -46,6 +46,12 @@ string calcStaticMerkleRoot(std::vector<string> &material) {
   StaticMerkleTree merkle_tree;
   merkle_tree.generate(sha256_material);
   merkle_tree_vector = merkle_tree.getStaticMerkleTree();
+
+  return merkle_tree_vector;
+}
+
+// transaction root, signer group root를 구할 때 쓰이는 고정 크기 머클 트리
+string calcStaticMerkleRoot(std::vector<hash_t> &merkle_tree_vector) {
   return TypeConverter::encodeBase<64>(merkle_tree_vector.back()); // 가장 뒤에 있는 원소가 root
 }
 
@@ -81,7 +87,7 @@ bool earlyStage() {
   }
 
   // step - check tx merkle tree
-  if (m_tx_root != calcStaticMerkleRoot(m_aggz)) { // 인자 수정 필요
+  if (m_tx_root != calcStaticMerkleRoot(m_txagg)) { // 인자 수정 필요
     CLOG(ERROR, "BLOC") << "Invalid Tx Merkle-tree root";
     return false;
   }
@@ -152,3 +158,6 @@ bool lateStage() {
 
 
 } // namespace gruut
+
+
+#endif
