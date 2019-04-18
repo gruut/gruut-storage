@@ -19,6 +19,7 @@ include_directories(/usr/local/include/botan-2)
 add_subdirectory(lib/leveldb)
 
 file(GLOB SOURCE_FILES
+        "chain/*.cpp"
         "storage/*.cpp"
         "include/*.cpp"
         )

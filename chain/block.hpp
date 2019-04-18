@@ -19,11 +19,11 @@ namespace gruut {
 
 class Block {
 private:
+  timestamp_t m_block_pub_time; // msg.btime
   base58_type m_block_id;
-  timestamp_t m_block_time;
-  timestamp_t m_block_pub_time;
-  world_id_type m_world_id;
-  localchain_id_type m_chain_id;
+  timestamp_t m_block_time; // msg.block.time
+  alphanumeric_type m_world_id;
+  alphanumeric_type m_chain_id;
   block_height_type m_block_height;
   base58_type m_block_prev_id;
   base64_type m_block_hash;
@@ -60,31 +60,33 @@ public:
     if (msg_block.empty())
       return false;
 
-    m_block_id = json::get<std::string>(msg_block["block"], "id").value();
-    m_block_time = static_cast<gruut::timestamp_t>(stoll(json::get<std::string>(msg_block["block"], "time").value()));
-    m_world_id = TypeConverter::base64ToArray<CHAIN_ID_TYPE_SIZE>(json::get<std::string>(msg_block["block"], "world").value());
-    m_chain_id = TypeConverter::base64ToArray<CHAIN_ID_TYPE_SIZE>(json::get<std::string>(msg_block["block"], "chain").value());
-    m_block_height = stoi(json::get<std::string>(msg_block["block"], "height").value());
-    m_block_prev_id = json::get<std::string>(msg_block["block"], "pid").value();
-    m_block_hash = json::get<std::string>(msg_block["block"], "hash").value();
+    m_block_pub_time = static_cast<gruut::timestamp_t>(stoll(json::get<string>(msg_block, "btime").value()));
+
+    m_block_id = json::get<string>(msg_block["block"], "id").value();
+    m_block_time = static_cast<gruut::timestamp_t>(stoll(json::get<string>(msg_block["block"], "time").value()));
+    m_world_id = json::get<string>(msg_block["block"], "world").value();
+    m_chain_id = json::get<string>(msg_block["block"], "chain").value();
+    m_block_height = stoi(json::get<string>(msg_block["block"], "height").value());
+    m_block_prev_id = json::get<string>(msg_block["block"], "pid").value();
+    m_block_hash = json::get<string>(msg_block["block"], "hash").value();
 
     setTxaggs(msg_block["tx"]);
     setTransaction(m_txagg); // txagg에서 트랜잭션 정보를 뽑아낸다
 
-    m_aggz = json::get<std::string>(msg_block, "aggz").value();
+    m_aggz = json::get<string>(msg_block, "aggz").value();
 
     m_tx_merkle_tree = makeStaticMerkleTree(m_txagg);
-    m_tx_root = json::get<std::string>(msg_block["state"], "txroot").value();
-    m_us_state_root = json::get<std::string>(msg_block["state"], "usroot").value();
-    m_cs_state_root = json::get<std::string>(msg_block["state"], "csroot").value();
-    m_sg_root = json::get<std::string>(msg_block["state"], "sgroot").value();
+    m_tx_root = json::get<string>(msg_block["state"], "txroot").value();
+    m_us_state_root = json::get<string>(msg_block["state"], "usroot").value();
+    m_cs_state_root = json::get<string>(msg_block["state"], "csroot").value();
+    m_sg_root = json::get<string>(msg_block["state"], "sgroot").value();
 
     if (!setSigners(msg_block["signer"]))
       return false;
     setUserCerts(msg_block["certificate"]);
 
-    m_block_prod_info.signer_id = json::get<std::string>(msg_block["producer"], "id").value();
-    m_block_prod_info.signer_signature = json::get<std::string>(msg_block["producer"], "sig").value();
+    m_block_prod_info.signer_id = json::get<string>(msg_block["producer"], "id").value();
+    m_block_prod_info.signer_sig = json::get<string>(msg_block["producer"], "sig").value();
 
     m_block_certificate = msg_block["certificate"].dump();
 
@@ -135,8 +137,8 @@ public:
     m_signers.clear();
     for (auto &each_signer : signers) {
       Signature tmp;
-      tmp.signer_id = json::get<std::string>(each_signer, "id").value();
-      tmp.signer_signature = json::get<std::string>(each_signer, "sig").value();
+      tmp.signer_id = json::get<string>(each_signer, "id").value();
+      tmp.signer_sig = json::get<string>(each_signer, "sig").value();
       m_signers.emplace_back(tmp);
     }
     return true;
@@ -146,11 +148,23 @@ public:
     m_user_certs.clear();
     for (auto &each_cert : certificates) {
       Certificate tmp;
-      tmp.cert_id = json::get<std::string>(each_cert, "id").value();
-      tmp.cert_content = json::get<std::string>(each_cert, "cert").value();
+      tmp.cert_id = json::get<string>(each_cert, "id").value();
+      tmp.cert_content = json::get<string>(each_cert, "cert").value();
       m_user_certs.emplace_back(tmp);
     }
     return true;
+  }
+
+  timestamp_t getBlockPubTime() {
+    return m_block_pub_time;
+  }
+
+  alphanumeric_type getWorldId() {
+    return m_world_id;
+  }
+
+  alphanumeric_type getChainId() {
+    return m_chain_id;
   }
 
   std::vector<txagg_cbor_b64> getTxaggs() {
@@ -161,42 +175,60 @@ public:
     return ret_txaggs;
   }
 
+  std::vector<Transaction> getTransactions() {
+    return m_transactions;
+  }
+
   block_height_type getHeight() {
     return m_block_height;
   }
-  size_t getNumTransactions() {
-    return m_txagg.size();
-  }
+
   size_t getNumSigners() {
     return m_signers.size();
   }
+
+  size_t getNumTransaction() {
+    return m_transactions.size();
+  }
+
   timestamp_t getBlockTime() {
     return m_block_time;
   }
 
-  string getBlockIdRaw() {
-    return TypeConverter::decodeBase<58>(m_block_id);
-  }
   string getBlockId() {
     return m_block_id;
   }
 
-  string getBlockHashRaw() {
-    return TypeConverter::decodeBase<64>(m_block_hash);
-  }
   string getBlockHash() {
     return m_block_hash;
   }
 
-  string getPrevBlockIdRaw() {
-    return TypeConverter::decodeBase<58>(m_block_prev_id);
+  base64_type getTxRoot() {
+    return m_tx_root;
   }
+
+  base64_type getUserStateRoot() {
+    return m_us_state_root;
+  }
+
+  base64_type getContractStateRoot() {
+    return m_cs_state_root;
+  }
+
+  base64_type getSgRoot() {
+    return m_sg_root;
+  }
+
   string getPrevBlockId() {
     return m_block_prev_id;
   }
 
-  string getTxRoot() {
-    return m_tx_root;
+  std::vector<Signature> getSigners() {
+    return m_signers;
+  }
+
+  base58_type getBlockProdId() {
+    return m_block_prod_info.signer_id;
   }
 };
 } // namespace gruut

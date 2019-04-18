@@ -5,34 +5,6 @@
 
 namespace gruut {
 
-void calcTransactionSignature() {
-  hash_t txid = Sha256::hash(
-      msg_tx.user.id(256) +
-      msg_tx.world(64) +
-      msg_tx.chain(64) +
-      msg_tx.time(64) +
-      msg_tx.seed(128) +
-      (msg_tx.body.receiver ? msg_tx.body.receiver(256) : '') +
-      (msg_tx.body.fee ? msg_tx.body.fee(64) : '') +
-      msg_tx.body.cid
-  );
-
-  tx_plain = txid(256) + nlohmann::json::to_cbor(msg_tx.body.input);
-
-  string endorser[*].sig = SignByEndorser(
-      tx_plain
-  );
-
-  msg_tx.user.sig = SignByUser(
-      tx_plain + (endoser[*].id + endoser[*].pk + endoser
-      *].sig)
-  );
-}
-
-void calcMergerSignature() {
-  signByMerger(Sha256::hash( block.time(64) + block.hash(256) + tx.length(32) + signer.length(32) + block.state.sgroot(256) ));
-}
-
 std::vector<hash_t> makeStaticMerkleTree(std::vector<string> &material) {
 
   std::vector<hash_t> merkle_tree_vector;
@@ -50,114 +22,105 @@ std::vector<hash_t> makeStaticMerkleTree(std::vector<string> &material) {
   return merkle_tree_vector;
 }
 
-// transaction root, signer group root를 구할 때 쓰이는 고정 크기 머클 트리
-string calcStaticMerkleRoot(std::vector<hash_t> &merkle_tree_vector) {
-  return TypeConverter::encodeBase<64>(merkle_tree_vector.back()); // 가장 뒤에 있는 원소가 root
-}
-
 // user scope, contract scope의 root를 구할 때 쓰이는 동적 머클 트리
 bool calcStateRoot() {
   // 이건 구현하려면 ledger가 필요. 그리고 enterprise에 없던 부분이라서 새로 만들어야 함.
 }
 
-std::map<std::string, std::string> extractUserCertsIf() {
-  std::map<std::string, std::string> ret_map;
-  for (auto &each_tx : m_transactions) {
-    std::map<std::string, std::string> tx_user_certs = each_tx.getCertsIf();
-    if (!tx_user_certs.empty())
-      ret_map.insert(tx_user_certs.begin(), tx_user_certs.end());
+bool verifyTransaction(Transaction &tx, string world, string chain) {
+  hash_t tx_id = Sha256::hash(tx.getProdId() + world + chain + to_string(tx.getTxTime()) + tx.getSeed() +
+                              (tx.getReceiverId().empty() ? tx.getReceiverId() : "") + (tx.getFee() != 0 ? to_string(tx.getFee()) : "") +
+                              tx.getContractId());
+
+  if (tx.getTxid() != TypeConverter::encodeBase<64>(tx_id)) {
+    return false;
   }
 
-  return ret_map;
+  string tx_plain = tx.getTxid() + tx.getTxInputCbor();
+
+  vector<Endorser> endorsers = tx.getEndorsers();
+  for (auto &each_end : endorsers) {
+    if (each_end.endorser_signature != SignByEndorser(tx_plain)) { // SignByEndorser가 확정되면 변경해야 함
+      return false;
+    }
+  }
+
+  string endorsers_info = "";
+  for (auto &each_end : endorsers) {
+    endorsers_info += each_end.endorser_id;
+    endorsers_info += each_end.endorser_pk;
+    endorsers_info += each_end.endorser_signature;
+  }
+  base64_type user_sig = SignByUser(tx_plain + endorsers_info); // SignByUser가 확정되면 변경해야 함
+  if (tx.getProdSig() != user_sig) {
+    return false;
+  }
+
+  return true;
 }
 
-void countSSig() {
-  ccc;
+bool verifyBlock(Block &block) {
+
+  //
+  // block time validation 추가 필요
+  //
+
+  hash_t block_id = Sha256::hash(block.getBlockProdId() + to_string(block.getBlockTime()) + block.getWorld() + block.getChain() +
+                                 to_string(block.getHeight()) + block.getPrevBlockId());
+  if (block.getBlockId() != TypeConverter::encodeBase<58>(block_id)) {
+    return false;
+  }
+
+  vector<hash_t> tx_merkle_tree = makeStaticMerkleTree(block.getTxaggs());
+  if (block.getTxRoot() != TypeConverter::encodeBase<64>(tx_merkle_tree.back())) {
+    return false;
+  }
+
+  hash_t block_hash = Sha256::hash(block.getBlockId() + block.getTxRoot() + block.getUserStateRoot() + block.getContractStateRoot());
+  if (block.getBlockHash() != TypeConverter::encodeBase<64>(block_hash)) {
+    return false;
+  }
+
+  vector<Signature> signers = block.getSigners();
+  vector<string> signer_id_sigs;
+  signer_id_sigs.clear();
+  for (auto &each_signer : signers) {
+    string id_sig = each_signer.signer_id + each_signer.signer_sig;
+    signer_id_sigs.emplace_back(id_sig);
+  }
+  vector<hash_t> sg_merkle_tree = makeStaticMerkleTree(signer_id_sigs);
+  if (block.getSgRoot() != TypeConverter::encodeBase<64>(sg_merkle_tree.back())) {
+    return false;
+  }
+
+  string merger_sig = SignByMerger(to_string(block.getBlockPubTime()) + block.getBlockHash() + to_string(block.getNumTransaction()) +
+                                   to_string(block.getNumSigners()) + block.getSgRoot());
+  if (block.get() != merger_sig) {
+    return false;
+  }
 }
 
 void validateSSig() {
-  ddd;
+  // late stage에서 사용될 함수입니다
 }
 
-bool earlyStage() {
-
-  if (m_certificate.empty()) {
-    CLOG(ERROR, "BLOC") << "Empty certificate";
+bool earlyStage(Block &block) {
+  if (!verifyBlock(block))
     return false;
-  }
 
-  // step - check tx merkle tree
-  if (m_tx_root != calcStaticMerkleRoot(m_txagg)) { // 인자 수정 필요
-    CLOG(ERROR, "BLOC") << "Invalid Tx Merkle-tree root";
-    return false;
-  }
-
-  // step - transactions
-
-  for (auto &each_tx : m_transactions) {
-    id_type requster_id = each_tx.getRequesterId();
-    std::string pk_cert = get_cert(requster_id);
-    if (!each_tx.isValid(pk_cert)) {
-      CLOG(ERROR, "BLOC") << "Invalid transaction";
+  vector<Transaction> transactions = block.getTransactions();
+  for (auto &each_transaction : transactions) {
+    if (!verifyTransaction(each_transaction, block.getWorldId(), block.getChainId()))
       return false;
-    }
-  }
-
-  // step - check merger's signature
-
-  std::string merger_pk_cert = get_cert(m_block_prod_info.signer_id);
-
-  if (merger_pk_cert.empty()) {
-    CLOG(ERROR, "BLOC") << "No suitable merger certificate";
-    return false;
-  }
-
-  if (!ECDSA::doVerify(merger_pk_cert, meta_header_raw, m_signature)) {
-
-    CLOG(ERROR, "BLOC") << "Invalid merger signature";
-    return false;
   }
 
   return true;
 }
 
-// Support signature cannot be verified unless storage or block itself has
-// suitable certificates Therefore, the verification of support signatures
-// should be delayed until the previous block has been saved.
 bool lateStage() {
-  // step - check support signatures
-  bytes ssig_msg_after_sid = getSupportSigMessageCommon();
-  for (auto &each_ssig : m_signers) {
-    BytesBuilder ssig_msg_builder;
-    ssig_msg_builder.append(each_ssig.signer_id);
-    ssig_msg_builder.append(ssig_msg_after_sid);
-
-    std::string user_id_b64 = TypeConverter::encodeBase<64>(each_ssig.signer_id);
-    std::string user_pk_pem;
-
-    auto it_map = m_user_certs.find(user_id_b64);
-    if (it_map != m_user_certs.end()) {
-      user_pk_pem = it_map->second;
-    } else {
-      user_pk_pem = get_user_cert(user_id_b64, m_block_time); // this is from storage
-    }
-
-    if (user_pk_pem.empty()) {
-      CLOG(ERROR, "BLOC") << "No suitable user certificate";
-      return false;
-    }
-
-    if (!ECDSA::doVerify(user_pk_pem, ssig_msg_builder.getBytes(), each_ssig.signer_signature)) {
-      CLOG(ERROR, "BLOC") << "Invalid support signature";
-      return false;
-    }
-  }
-
-  return true;
+  // validateSSig()를 메인으로 합니다
 }
-
 
 } // namespace gruut
-
 
 #endif

@@ -103,27 +103,22 @@ enum class ExitCode {
 
 using string = std::string;
 using bytes = std::vector<uint8_t>;
-
 using hash_t = std::vector<uint8_t>;
 using timestamp_t = uint64_t;
 
 constexpr auto TRANSACTION_ID_TYPE_SIZE = 32;
-constexpr auto CHAIN_ID_TYPE_SIZE = 8;
-using tx_id_type = std::array<uint8_t, TRANSACTION_ID_TYPE_SIZE>;
-using localchain_id_type = std::array<uint8_t, CHAIN_ID_TYPE_SIZE>;
-using world_id_type = std::array<uint8_t, CHAIN_ID_TYPE_SIZE>;
+constexpr auto ALPHANUMERIC_ID_TYPE_SIZE = 8;
 
 using block_height_type = size_t;
-using block_header_hash_type = hash_t;
 using block_version_type = uint32_t;
 using transaction_root_type = hash_t;
 using header_length_type = uint32_t;
 using content_type = std::string;
 using hmac_key_type = Botan::secure_vector<uint8_t>;
-using block_layer_t = std::vector<std::string>;
 
 using txagg_cbor_b64 = std::string;
 
+using alphanumeric_type = std::string;
 using base58_type = std::string;
 using base64_type = std::string;
 

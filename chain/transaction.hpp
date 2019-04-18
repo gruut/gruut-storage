@@ -23,7 +23,8 @@ private:
 
   string m_contract_id;
   base58_type m_receiver_id;
-  int m_fee;
+  int m_author_fee;
+  int m_user_fee;
   string m_tx_input_cbor; // to_cbor 된 상태
 
   base58_type m_tx_prod_id;
@@ -46,7 +47,7 @@ public:
 
     m_contract_id = json::get<string>(tx_json["body"], "cid").value(); // 현재 cid 관련 내용은 message에 없음
     m_receiver_id = json::get<string>(tx_json["body"], "receiver").value();
-    m_fee = stoi(json::get<string>(tx_json["body"], "fee").value());
+    setFee(tx_json["body"]["fee"]);
     setTxInputCbor(tx_json["body"]["input"]);
 
     m_tx_prod_id = json::get<string>(tx_json["user"], "id").value();
@@ -62,6 +63,11 @@ public:
     //    setTxOutput();
 
     return true;
+  }
+
+  void setFee(nlohmann::json fee_array){
+    m_author_fee = stoi(fee_array[0].dump());
+    m_user_fee = stoi(fee_array[1].dump());
   }
 
   void setTxInputCbor(nlohmann::json input_array) {
@@ -81,6 +87,46 @@ public:
       m_tx_endorsers.emplace_back(tmp);
     }
     return true;
+  }
+
+  base58_type getTxid() {
+    return m_txid;
+  }
+
+  timestamp_t getTxTime() {
+    return m_tx_time;
+  }
+
+  base64_type getSeed() {
+    return m_seed;
+  }
+
+  string getContractId() {
+    return m_contract_id;
+  }
+
+  base58_type getReceiverId() {
+    return m_receiver_id;
+  }
+
+  int getFee() {
+    return m_fee;
+  }
+
+  string getTxInputCbor() {
+    return m_tx_input_cbor;
+  }
+
+  base58_type getProdId() {
+    return m_tx_prod_id;
+  }
+
+  base64_type getProdSig() {
+    return m_tx_prod_sig;
+  }
+
+  vector<Endorser> getEndorsers() {
+    return m_tx_endorsers;
   }
 };
 } // namespace gruut

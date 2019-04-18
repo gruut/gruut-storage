@@ -7,12 +7,11 @@ namespace gruut {
 class Signature {
 public:
   base58_type signer_id;
-  base64_type signer_signature;
-  block_height_type height;
+  base64_type signer_sig;
 
   Signature() = default;
-  Signature(base58_type &&signer_id_, base64_type &&signer_signature_) : signer_id(signer_id_), signer_signature(signer_signature_) {}
-  Signature(base58_type &signer_id_, base64_type &signer_signature_) : signer_id(signer_id_), signer_signature(signer_signature_) {}
+  Signature(base58_type &&signer_id_, base64_type &&signer_sig_) : signer_id(signer_id_), signer_sig(signer_sig_) {}
+  Signature(base58_type &signer_id_, base64_type &signer_sig_) : signer_id(signer_id_), signer_sig(signer_sig_) {}
 };
 } // namespace gruut
 #endif
