@@ -62,7 +62,8 @@ bool verifyTransaction(Transaction &tx, string world, string chain) {
 bool verifyBlock(Block &block) {
 
   //
-  // block time validation 추가 필요
+  // SSig의 퀄리티, 수 검증 추가
+  // block time validation 추가
   //
 
   hash_t block_id = Sha256::hash(block.getBlockProdId() + to_string(block.getBlockTime()) + block.getWorld() + block.getChain() +
@@ -92,6 +93,11 @@ bool verifyBlock(Block &block) {
   if (block.getSgRoot() != TypeConverter::encodeBase<64>(sg_merkle_tree.back())) {
     return false;
   }
+
+  //
+  // us_state_root 검증 추가
+  // cs_state_root 검증 추가
+  //
 
   string merger_sig = SignByMerger(to_string(block.getBlockPubTime()) + block.getBlockHash() + to_string(block.getNumTransaction()) +
                                    to_string(block.getNumSigners()) + block.getSgRoot());
