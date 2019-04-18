@@ -28,7 +28,7 @@ private:
   base58_type m_block_prev_id;
   base64_type m_block_hash;
 
-  std::vector<txagg_cbor_b64> m_txagg; // Tx의 Json을 CBOR로 처리하고 그 데이터를 b64인코딩한 결과 vector
+  std::vector<txagg_cbor_b64> m_txaggs; // Tx의 Json을 CBOR로 처리하고 그 데이터를 b64인코딩한 결과 vector
   std::vector<Transaction> m_transactions; // RDB 블록/트랜잭션 정보에 넣어야하기 때문에 유지. tx_root 계산할 때에도 사용
 
   base64_type m_aggz; // aggregate signature 에 필요함
@@ -71,11 +71,11 @@ public:
     m_block_hash = json::get<string>(msg_block["block"], "hash").value();
 
     setTxaggs(msg_block["tx"]);
-    setTransaction(m_txagg); // txagg에서 트랜잭션 정보를 뽑아낸다
+    setTransaction(m_txaggs); // txagg에서 트랜잭션 정보를 뽑아낸다
 
     m_aggz = json::get<string>(msg_block, "aggz").value();
 
-    m_tx_merkle_tree = makeStaticMerkleTree(m_txagg);
+    m_tx_merkle_tree = makeStaticMerkleTree(m_txaggs);
     m_tx_root = json::get<string>(msg_block["state"], "txroot").value();
     m_us_state_root = json::get<string>(msg_block["state"], "usroot").value();
     m_cs_state_root = json::get<string>(msg_block["state"], "csroot").value();
@@ -93,8 +93,8 @@ public:
     return true;
   }
 
-  bool setTxaggs(std::vector<txagg_cbor_b64> &txagg) {
-    m_txagg = txagg;
+  bool setTxaggs(std::vector<txagg_cbor_b64> &txaggs) {
+    m_txaggs = txaggs;
     return true;
   }
 
@@ -103,9 +103,9 @@ public:
       return false;
     }
 
-    m_txagg.clear();
+    m_txaggs.clear();
     for (auto &each_tx_json : txs_json) {
-      m_txagg.emplace_back(each_tx_json);
+      m_txaggs.emplace_back(each_tx_json);
     }
     return true;
   }
@@ -123,7 +123,7 @@ public:
     return true;
   }
 
-  bool setSupportSignatures(std::vector<Signature> &signers) {
+  bool setSigners(std::vector<Signature> &signers) {
     if (signers.empty())
       return false;
     m_signers = signers;
@@ -159,6 +159,14 @@ public:
     return m_block_pub_time;
   }
 
+  string getBlockId() {
+    return m_block_id;
+  }
+
+  timestamp_t getBlockTime() {
+    return m_block_time;
+  }
+
   alphanumeric_type getWorldId() {
     return m_world_id;
   }
@@ -167,9 +175,21 @@ public:
     return m_chain_id;
   }
 
+  block_height_type getHeight() {
+    return m_block_height;
+  }
+
+  string getPrevBlockId() {
+    return m_block_prev_id;
+  }
+
+  string getBlockHash() {
+    return m_block_hash;
+  }
+
   std::vector<txagg_cbor_b64> getTxaggs() {
     std::vector<txagg_cbor_b64> ret_txaggs;
-    for (auto &each_tx : m_txagg) {
+    for (auto &each_tx : m_txaggs) {
       ret_txaggs.emplace_back(each_tx);
     }
     return ret_txaggs;
@@ -179,28 +199,8 @@ public:
     return m_transactions;
   }
 
-  block_height_type getHeight() {
-    return m_block_height;
-  }
-
-  size_t getNumSigners() {
-    return m_signers.size();
-  }
-
   size_t getNumTransaction() {
     return m_transactions.size();
-  }
-
-  timestamp_t getBlockTime() {
-    return m_block_time;
-  }
-
-  string getBlockId() {
-    return m_block_id;
-  }
-
-  string getBlockHash() {
-    return m_block_hash;
   }
 
   base64_type getTxRoot() {
@@ -219,12 +219,12 @@ public:
     return m_sg_root;
   }
 
-  string getPrevBlockId() {
-    return m_block_prev_id;
-  }
-
   std::vector<Signature> getSigners() {
     return m_signers;
+  }
+
+  size_t getNumSigners() {
+    return m_signers.size();
   }
 
   base58_type getBlockProdId() {
