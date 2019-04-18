@@ -43,9 +43,9 @@ public:
 
     m_txid = json::get<string>(tx_json, "txid").value();
     m_tx_time = static_cast<gruut::timestamp_t>(stoll(json::get<string>(tx_json, "time").value()));
-    m_seed = json::get<string>(tx_json, "txid").value());
+    m_seed = json::get<string>(tx_json, "seed").value());
 
-    m_contract_id = json::get<string>(tx_json["body"], "cid").value(); // 현재 cid 관련 내용은 message에 없음
+    m_contract_id = json::get<string>(tx_json["body"], "cid").value();
     m_receiver_id = json::get<string>(tx_json["body"], "receiver").value();
     setFee(tx_json["body"]["fee"]);
     setTxInputCbor(tx_json["body"]["input"]);
@@ -65,7 +65,7 @@ public:
     return true;
   }
 
-  void setFee(nlohmann::json fee_array){
+  void setFee(nlohmann::json fee_array) {
     m_author_fee = stoi(fee_array[0].dump());
     m_user_fee = stoi(fee_array[1].dump());
   }
@@ -109,8 +109,12 @@ public:
     return m_receiver_id;
   }
 
-  int getFee() {
-    return m_fee;
+  int getAuthorFee() {
+    return m_author_fee;
+  }
+
+  int getUserFee() {
+    return m_user_fee;
   }
 
   string getTxInputCbor() {
