@@ -23,8 +23,7 @@ private:
 
   string m_contract_id;
   base58_type m_receiver_id;
-  int m_author_fee;
-  int m_user_fee;
+  int m_fee;
   string m_tx_input_cbor; // to_cbor 된 상태
 
   base58_type m_tx_user_id;
@@ -47,7 +46,7 @@ public:
 
     m_contract_id = json::get<string>(tx_json["body"], "cid").value();
     m_receiver_id = json::get<string>(tx_json["body"], "receiver").value();
-    setFee(tx_json["body"]["fee"]);
+    m_fee = stoi(json::get<string>(tx_json["body"], "fee").value());
     setTxInputCbor(tx_json["body"]["input"]);
 
     m_tx_user_id = json::get<string>(tx_json["user"], "id").value();
@@ -65,13 +64,8 @@ public:
     return true;
   }
 
-  void setFee(nlohmann::json &fee_array) {
-    m_author_fee = stoi(fee_array[0].dump());
-    m_user_fee = stoi(fee_array[1].dump());
-  }
-
   void setTxInputCbor(nlohmann::json &input_array) {
-    m_tx_input_cbor = TypeConverter::encodeBase<64>(nlohmann::json::to_cbor(input_array));
+    m_tx_input_cbor = TypeConverter::encodeBase<64>(nlohmann::json::to_cbor(input_array));  // ? 이게 맞나?
   }
 
   bool setEndorsers(nlohmann::json &endorser_array) {
@@ -109,12 +103,8 @@ public:
     return m_receiver_id;
   }
 
-  int getAuthorFee() {
-    return m_author_fee;
-  }
-
-  int getUserFee() {
-    return m_user_fee;
+  int getFee() {
+    return m_fee;
   }
 
   string getTxInputCbor() {
