@@ -30,7 +30,6 @@ bool UnresolvedBlockPool::prepareBins(block_height_type t_height) {
   }
 
   int bin_pos = static_cast<int>(t_height - m_latest_confirmed_height) - 1; // deque에서 위치하는 인덱스. e.g., 0 = 2 - 1 - 1
-
   if (m_block_pool.size() < bin_pos + 1) {
     m_block_pool.resize(bin_pos + 1);
   }
@@ -41,6 +40,7 @@ bool UnresolvedBlockPool::prepareBins(block_height_type t_height) {
 unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) {
   unblk_push_result_type ret_val; // 해당 return 구조는 추후 변경 가능성 있음
   ret_val.height = 0;
+  ret_val.linked = false;
   ret_val.duplicated = false;
 
   std::lock_guard<std::recursive_mutex> guard(m_push_mutex);
@@ -70,7 +70,7 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
       ++idx;
     }
   } else { // no previous
-    if (block.getPrevBlockId() == m_latest_confirmed_prev_id) {
+    if (block.getPrevBlockId() == m_latest_confirmed_id) {
       prev_queue_idx = 0;
     } else {
       // drop block -- this is not linkable block!

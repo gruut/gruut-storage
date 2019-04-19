@@ -152,13 +152,6 @@ using unblk_push_result_type = struct _unblk_push_result_type {
   bool linked;
   bool duplicated;
   block_height_type height;
-  block_layer_t block_layer;
-};
-
-using merger_height_type = struct _merger_height_type {
-  base58_type merger_id;
-  block_height_type height;
-  _merger_height_type(base58_type merger_id_, block_height_type height_) : merger_id(std::move(merger_id_)), height(height_) {}
 };
 
 } // namespace gruut

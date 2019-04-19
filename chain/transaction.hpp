@@ -65,16 +65,16 @@ public:
     return true;
   }
 
-  void setFee(nlohmann::json fee_array) {
+  void setFee(nlohmann::json &fee_array) {
     m_author_fee = stoi(fee_array[0].dump());
     m_user_fee = stoi(fee_array[1].dump());
   }
 
-  void setTxInputCbor(nlohmann::json input_array) {
+  void setTxInputCbor(nlohmann::json &input_array) {
     m_tx_input_cbor = TypeConverter::encodeBase<64>(nlohmann::json::to_cbor(input_array));
   }
 
-  bool setEndorsers(nlohmann::json endorser_array) {
+  bool setEndorsers(nlohmann::json &endorser_array) {
     if (!endorser_array.is_array())
       return false;
 
