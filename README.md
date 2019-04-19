@@ -4,11 +4,9 @@
   - CMake (**3.12**)
   - nlohmann
     * [link](https://github.com/nlohmann/json)
-  - SHA256
-    * [link](http://www.zedwood.com/article/cpp-sha256-function)
 
 
-### Example
+### State Tree Example
   - **Test blocks**
 
         {
