@@ -27,9 +27,9 @@ private:
   int m_user_fee;
   string m_tx_input_cbor; // to_cbor 된 상태
 
-  base58_type m_tx_prod_id;
-  string m_tx_prod_pk;
-  base64_type m_tx_prod_sig;
+  base58_type m_tx_user_id;
+  string m_tx_user_pk;
+  base64_type m_tx_user_sig;
 
   vector<Endorser> m_tx_endorsers;
 
@@ -50,9 +50,9 @@ public:
     setFee(tx_json["body"]["fee"]);
     setTxInputCbor(tx_json["body"]["input"]);
 
-    m_tx_prod_id = json::get<string>(tx_json["user"], "id").value();
-    m_tx_prod_pk = json::get<string>(tx_json["user"], "pk").value();
-    m_tx_prod_sig = json::get<string>(tx_json["user"], "agga").value();
+    m_tx_user_id = json::get<string>(tx_json["user"], "id").value();
+    m_tx_user_pk = json::get<string>(tx_json["user"], "pk").value();
+    m_tx_user_sig = json::get<string>(tx_json["user"], "agga").value();
 
     setEndorsers(tx_json["endorser"]);
 
@@ -121,12 +121,12 @@ public:
     return m_tx_input_cbor;
   }
 
-  base58_type getProdId() {
-    return m_tx_prod_id;
+  base58_type getUserId() {
+    return m_tx_user_id;
   }
 
-  base64_type getProdSig() {
-    return m_tx_prod_sig;
+  base64_type getUserSig() {
+    return m_tx_user_sig;
   }
 
   vector<Endorser> getEndorsers() {

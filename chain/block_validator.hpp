@@ -28,7 +28,7 @@ bool calcStateRoot() {
 }
 
 bool verifyTransaction(Transaction &tx, string world, string chain) {
-  hash_t tx_id = Sha256::hash(tx.getProdId() + world + chain + to_string(tx.getTxTime()) + tx.getSeed() +
+  hash_t tx_id = Sha256::hash(tx.getUserId() + world + chain + to_string(tx.getTxTime()) + tx.getSeed() +
                               (tx.getReceiverId().empty() ? tx.getReceiverId() : "") + (tx.getFee() != 0 ? to_string(tx.getFee()) : "") +
                               tx.getContractId());
 
@@ -52,7 +52,7 @@ bool verifyTransaction(Transaction &tx, string world, string chain) {
     endorsers_info += each_end.endorser_signature;
   }
   base64_type user_sig = SignByUser(tx_plain + endorsers_info); // SignByUser가 확정되면 변경해야 함
-  if (tx.getProdSig() != user_sig) {
+  if (tx.getUserSig() != user_sig) {
     return false;
   }
 
