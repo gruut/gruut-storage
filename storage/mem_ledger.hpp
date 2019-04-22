@@ -52,6 +52,9 @@ public:
   bool addUserScope(std::string var_name, std::string var_val, std::string var_type, std::string var_owner, timestamp_t up_time,
                     block_height_type up_block, std::string condition) {
     std::lock_guard<std::mutex> lock(m_active_mutex);
+
+    // TODO: 현 위치에서 RDB까지 체크하면서 값의 갱신 결과 계산
+
     m_ledger.emplace_back(var_name, var_val, var_type, var_owner, up_time, up_block, condition);
 
     return true;

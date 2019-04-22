@@ -78,17 +78,17 @@ public:
   void restorePool();
   void setupStateTree();
 
-  void processTxResult(Block &new_block, nlohmann::json &result);
+  void processTxResult(UnresolvedBlock &new_UR_block, nlohmann::json &result);
   void moveHead(const std::string &block_id_b64, const block_height_type target_block_height);
-  bool queryUserJoin(Block &block, nlohmann::json &option);
-  bool queryUserCert(Block &block, nlohmann::json &option);
-  bool queryIncinerate(Block &block, nlohmann::json &option);
-  bool queryCreate(Block &block, nlohmann::json &option);
-  bool queryTransfer(Block &block, nlohmann::json &option);
-  bool queryUserScope(Block &block, nlohmann::json &option);
-  bool queryContractScope(Block &block, nlohmann::json &option);
-  bool queryRunQuery(Block &block, nlohmann::json &option);
-  bool queryRunContract(Block &block, nlohmann::json &option);
+  bool queryUserJoin(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryUserCert(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryIncinerate(UnresolvedBlock &UR_lock, nlohmann::json &option);
+  bool queryCreate(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryTransfer(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryUserScope(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryContractScope(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryRunQuery(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryRunContract(UnresolvedBlock &UR_block, nlohmann::json &option);
 
   bool hasUnresolvedBlocks();
   void invalidateCaches();
