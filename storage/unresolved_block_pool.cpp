@@ -104,11 +104,11 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
   return ret_val;
 }
 
-void UnresolvedBlockPool::process_tx_result(Block &new_block, nlohmann::json &result) {
+void UnresolvedBlockPool::processTxResult(Block &new_block, nlohmann::json &result) {
   // 파싱한 결과로 unresolved_block에 저장될 ledger에 대한 정보를 만들고 처리
 
   if (new_block.getBlockId() != m_head_id) {
-    move_head(new_block.getPrevBlockId(), new_block.getHeight());
+    moveHead(new_block.getPrevBlockId(), new_block.getHeight());
   }
 
   // process result json, make ledger etc..
@@ -127,17 +127,36 @@ void UnresolvedBlockPool::process_tx_result(Block &new_block, nlohmann::json &re
 
     vector<string> friends;
     nlohmann::json friends_json = each_result["friend"];
-    for (auto &each_friend : freiends_json) {
+    for (auto &each_friend : friends_json) {
       friends.emplace_back(each_friend.dump());
     }
     int fee = stoi(json::get<string>(each_result, "fee").value());
-    ;
 
     nlohmann::json queries_json = each_result["queries"];
     for (auto &each_query : queries_json) {
       string type = json::get<string>(each_query, "type").value();
       nlohmann::json option = each_query["option"];
-      query_processor(type, option);
+      if (type == "user.join") {
+        queryUserJoin(new_block, option);
+      } else if (type == "user.cert") {
+        queryUserCert(new_block, option);
+      } else if (type == "v.incinerate") {
+        queryIncinerate(new_block, option);
+      } else if (type == "v.create") {
+        queryCreate(new_block, option);
+      } else if (type == "v.transfer") {
+        queryTransfer(new_block, option);
+      } else if (type == "scope.user") {
+        queryUserScope(new_block, option);
+      } else if (type == "scope.contract") {
+        queryContractScope(new_block, option);
+      } else if (type == "run.query") {
+        queryRunQuery(new_block, option);
+      } else if (type == "run.contract") {
+        queryRunContract(new_block, option);
+      } else {
+        CLOG(ERROR, "URBP") << "Something error in query process";
+      }
     }
   }
 
@@ -145,7 +164,7 @@ void UnresolvedBlockPool::process_tx_result(Block &new_block, nlohmann::json &re
   calcStateRoot(csroot);
 }
 
-void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, const block_height_type target_block_height) {
+void UnresolvedBlockPool::moveHead(const base64_type &target_block_id_b64, const block_height_type target_block_height) {
   // missing link 등에 대한 예외처리를 추가해야 할 필요 있음
 
   if (!target_block_id_b64.empty()) {
@@ -240,57 +259,73 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
   }
 }
 
-void UnresolvedBlockPool::query_processor(string &type, nlomann::json &option) {
-  if (type == "user.join") {
-    base58_type uid = json::get<string>(option, "uid").value();
-    string gender = json::get<string>(option, "gender").value();
-    string age = stoi(json::get<string>(option, "age").value());
-    string isc_type = json::get<string>(option, "isc_type").value();
-    string isc_code = json::get<string>(option, "isc_code").value();
-    string location = json::get<string>(option, "location").value();
-  } else if (type == "user.cert") {
-    base58_type uid = json::get<string>(option, "uid").value();
-    timestamp_t notbefore = static_cast<uint64_t>(stoll(json::get<string>(option, "notbefore").value()));
-    timestamp_t notafter = static_cast<uint64_t>(stoll(json::get<string>(option, "notafter").value()));
-    string sn = json::get<string>(option, "sn").value();
-    string x509 = json::get<string>(option, "x509").value();
-  } else if (type == "v.incinerate") {
-    string amount = stoi(json::get<string>(option, "amount").value());
-    string pid = json::get<string>(option, "pid").value();
-  } else if (type == "v.create") {
-    string amount = stoi(json::get<string>(option, "amount").value());
-    string name = json::get<string>(option, "name").value();
-    string type = json::get<string>(option, "type").value();
-    string condition = json::get<string>(option, "condition").value();
-  } else if (type == "v.transfer") {
-    base58_type from = json::get<string>(option, "from").value();
-    base58_type to = json::get<string>(option, "to").value();
-    string amount = stoi(json::get<string>(option, "amount").value());
-    string unit = json::get<string>(option, "unit").value();
-    string pid = json::get<string>(option, "pid").value();
-    string condition = json::get<string>(option, "condition").value();
-  } else if (type == "scope.user") {
-    string name = json::get<string>(option, "unit").value();
-    string value = json::get<string>(option, "value").value();
-    base58_type uid = json::get<string>(option, "uid").value();
-    string pid = json::get<string>(option, "pid").value();
-    string condition = json::get<string>(option, "condition").value();
-  } else if (type == "scope.contract") {
-    string name = json::get<string>(option, "unit").value();
-    string value = json::get<string>(option, "value").value();
-    string cid = json::get<string>(option, "cid").value();
-    string pid = json::get<string>(option, "pid").value();
-  } else if (type == "run.query") {
-    string type = json::get<string>(each_query, "type").value();
-    nlohmann::json query = option["query"];
-    timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
-  } else if (type == "run.contract") {
-    string cid = json::get<string>(option, "cid").value();
-    string input = json::get<string>(option, "input").value();
-    timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
-  } else {
-    CLOG(ERROR, "URBP") << "Something error in query_processor()";
-  }
+bool UnresolvedBlockPool::queryUserJoin(Block &block, nlohmann::json &option) {
+  base58_type uid = json::get<string>(option, "uid").value();
+  string gender = json::get<string>(option, "gender").value();
+  int age = stoi(json::get<string>(option, "age").value());
+  string isc_type = json::get<string>(option, "isc_type").value();
+  string isc_code = json::get<string>(option, "isc_code").value();
+  string location = json::get<string>(option, "location").value();
+}
+
+bool UnresolvedBlockPool::queryUserCert(Block &block, nlohmann::json &option) {
+  base58_type uid = json::get<string>(option, "uid").value();
+  timestamp_t notbefore = static_cast<uint64_t>(stoll(json::get<string>(option, "notbefore").value()));
+  timestamp_t notafter = static_cast<uint64_t>(stoll(json::get<string>(option, "notafter").value()));
+  string sn = json::get<string>(option, "sn").value();
+  string x509 = json::get<string>(option, "x509").value();
+}
+
+bool UnresolvedBlockPool::queryIncinerate(Block &block, nlohmann::json &option) {
+  string amount = stoi(json::get<string>(option, "amount").value());
+  string pid = json::get<string>(option, "pid").value();
+}
+
+bool UnresolvedBlockPool::queryCreate(Block &block, nlohmann::json &option) {
+  string amount = stoi(json::get<string>(option, "amount").value());
+  string name = json::get<string>(option, "name").value();
+  string type = json::get<string>(option, "type").value();
+  string condition = json::get<string>(option, "condition").value();
+}
+
+bool UnresolvedBlockPool::queryTransfer(Block &block, nlohmann::json &option) {
+  base58_type from = json::get<string>(option, "from").value();
+  base58_type to = json::get<string>(option, "to").value();
+  string amount = stoi(json::get<string>(option, "amount").value());
+  string unit = json::get<string>(option, "unit").value();
+  string pid = json::get<string>(option, "pid").value();
+  string condition = json::get<string>(option, "condition").value();
+}
+
+bool UnresolvedBlockPool::queryUserScope(Block &block, nlohmann::json &option) {
+  string name = json::get<string>(option, "unit").value();
+  string value = json::get<string>(option, "value").value();
+  base58_type uid = json::get<string>(option, "uid").value();
+  string pid = json::get<string>(option, "pid").value();
+  string condition = json::get<string>(option, "condition").value();
+}
+
+bool UnresolvedBlockPool::queryContractScope(Block &block, nlohmann::json &option) {
+  string name = json::get<string>(option, "unit").value();
+  string value = json::get<string>(option, "value").value();
+  string cid = json::get<string>(option, "cid").value();
+  string pid = json::get<string>(option, "pid").value();
+}
+
+bool UnresolvedBlockPool::queryRunQuery(Block &block, nlohmann::json &option) {
+  string type = json::get<string>(each_query, "type").value();
+  nlohmann::json query = option["query"];
+  timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
+
+  // TODO: Scheduler에게 지연 처리 요청 전송
+}
+
+bool UnresolvedBlockPool::queryRunContract(Block &block, nlohmann::json &option) {
+  string cid = json::get<string>(option, "cid").value();
+  string input = json::get<string>(option, "input").value();
+  timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
+
+  // TODO: authority.user를 현재 user로 대체하여 Scheduler에게 요청 전송
 }
 
 void UnresolvedBlockPool::getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {}

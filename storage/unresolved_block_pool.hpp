@@ -78,9 +78,17 @@ public:
   void restorePool();
   void setupStateTree();
 
-  void process_tx_result(Block &new_block, nlohmann::json &result);
-  void move_head(const std::string &block_id_b64, const block_height_type target_block_height);
-  void query_processor(string &type, nlomann::json &option);
+  void processTxResult(Block &new_block, nlohmann::json &result);
+  void moveHead(const std::string &block_id_b64, const block_height_type target_block_height);
+  bool queryUserJoin(Block &block, nlohmann::json &option);
+  bool queryUserCert(Block &block, nlohmann::json &option);
+  bool queryIncinerate(Block &block, nlohmann::json &option);
+  bool queryCreate(Block &block, nlohmann::json &option);
+  bool queryTransfer(Block &block, nlohmann::json &option);
+  bool queryUserScope(Block &block, nlohmann::json &option);
+  bool queryContractScope(Block &block, nlohmann::json &option);
+  bool queryRunQuery(Block &block, nlohmann::json &option);
+  bool queryRunContract(Block &block, nlohmann::json &option);
 
   bool hasUnresolvedBlocks();
   void invalidateCaches();
