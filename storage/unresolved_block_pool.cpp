@@ -220,238 +220,32 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
 }
 
 void UnresolvedBlockPool::getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {
-  resolved_blocks.clear();
-  drop_blocks.clear();
 
-  auto storage = Storage::getInstance();
-  size_t num_resolved_block = 0;
-  nlohmann::json del_id_array = nlohmann::json::array();
-  nlohmann::json new_id_array = nlohmann::json::array();
-
-  auto resolveBlocksStepByStep = [this](std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {
-    updateConfirmLevel();
-
-    if (m_block_pool.size() < 2 || m_block_pool[0].empty() || m_block_pool[1].empty())
-      return;
-
-    size_t highest_confirm_level = 0;
-    int resolved_block_idx = -1;
-
-    for (size_t i = 0; i < m_block_pool[0].size(); ++i) {
-      if (m_block_pool[0][i].prev_vector_idx == 0 && m_block_pool[0][i].confirm_level > highest_confirm_level) {
-        highest_confirm_level = m_block_pool[0][i].confirm_level;
-        resolved_block_idx = static_cast<int>(i);
-      }
-    }
-
-    if (resolved_block_idx < 0 || highest_confirm_level < config::BLOCK_CONFIRM_LEVEL)
-      return; // nothing to do
-
-    bool is_after = false;
-    for (auto &each_block : m_block_pool[1]) {
-      if (each_block.prev_vector_idx == resolved_block_idx) { // some block links this block
-        is_after = true;
-        break;
-      }
-    }
-
-    if (!is_after)
-      return;
-
-    m_prev_block_id = m_last_block_id;
-
-    m_latest_confirmed_id = m_block_pool[0][resolved_block_idx].block.getBlockId();
-    m_latest_confirmed_hash = m_block_pool[0][resolved_block_idx].block.getBlockHash();
-    m_latest_confirmed_height = m_block_pool[0][resolved_block_idx].block.getHeight();
-
-    resolved_blocks.emplace_back(m_block_pool[0][resolved_block_idx]);
-
-    // clear this height list
-
-    auto layered_storage = LayeredStorage::getInstance();
-
-    if (m_block_pool[0].size() > 1) {
-      for (auto &each_block : m_block_pool[0]) {
-        if (each_block.block.getBlockId() != m_latest_confirmed_id) {
-          drop_blocks.emplace_back(each_block.block.getBlockId());
-        }
-      }
-      CLOG(INFO, "URBK") << "Dropped out " << m_block_pool[0].size() - 1 << " unresolved block(s)";
-    }
-
-    m_block_pool.pop_front();
-
-    if (m_block_pool.empty())
-      return;
-
-    for (auto &each_block : m_block_pool[0]) {
-      if (each_block.block.getPrevBlockId() == m_last_block_id && each_block.block.getPrevHash() == m_last_hash) {
-        each_block.prev_vector_idx = 0;
-      } else {
-        // this block is unlinkable => to be deleted
-        each_block.prev_vector_idx = -1;
-      }
-    }
-  };
-
-  std::lock_guard<std::recursive_mutex> guard(m_push_mutex);
-
-  do {
-    num_resolved_block = resolved_blocks.size();
-    resolveBlocksStepByStep(resolved_blocks, drop_blocks);
-  } while (num_resolved_block < resolved_blocks.size());
-
-  json id_array = readBackupIds();
-
-  if (id_array.empty() || !id_array.is_array())
-    return;
-
-  for (auto &each_block_id : drop_blocks) {
-    del_id_array.push_back(each_block_id);
-  }
-
-  for (auto &each_id : id_array) {
-    bool is_resolved = false;
-    string block_id_b64 = json::get<string>(each_id).value();
-    if (block_id_b64.empty())
-      continue;
-
-    for (auto &each_block : resolved_blocks) {
-      if (block_id_b64 == each_block.block.getBlockIdB64()) {
-        is_resolved = true;
-        break;
-      }
-    }
-
-    if (is_resolved) {
-      del_id_array.push_back(block_id_b64);
-    } else {
-      new_id_array.push_back(block_id_b64);
-    }
-  }
-
-  storage->saveBackup(UNRESOLVED_BLOCK_IDS_KEY, TypeConverter::bytesToString(json::to_cbor(new_id_array)));
-
-  for (auto &each_id : del_id_array) {
-    string block_id_b64 = json::get<string>(each_id).value();
-    storage->delBackup(block_id_b64);
-  }
-
-  storage->flushBackup();
-
-  m_push_mutex.unlock();
 }
 
-void UnresolvedBlockPool::updateConfirmLevel() {
+void UnresolvedBlockPool::updateTotalNumSSig() {
   if (m_block_pool.empty())
     return;
 
   for (auto &each_level : m_block_pool) {
     for (auto &each_block : each_level) {
-      each_block.confirm_level = each_block.block.getNumSSigs();
+      each_block.ssig_sum = each_block.block.getNumSigners();
     }
   }
 
   for (int i = (int)m_block_pool.size() - 1; i > 0; --i) {
     for (auto &each_block : m_block_pool[i]) { // for vector
       if (each_block.prev_vector_idx >= 0 && m_block_pool[i - 1].size() > each_block.prev_vector_idx) {
-        m_block_pool[i - 1][each_block.prev_vector_idx].confirm_level += each_block.confirm_level;
+        m_block_pool[i - 1][each_block.prev_vector_idx].ssig_sum += each_block.ssig_sum;
       }
     }
   }
 }
 
 BlockPosPool UnresolvedBlockPool::getLongestBlockPos() {
-  //  if (m_has_cache_pos)
-  //    return m_cache_possible_pos;
 
-  // search prev_level
-  std::function<void(size_t, size_t, BlockPosPool &)> recSearchLongestLinkPos;
-  recSearchLongestLinkPos = [this, &recSearchLongestLinkPos](size_t bin_idx, size_t prev_vector_idx, BlockPosPool &longest_pos) {
-    if (m_block_pool.size() < bin_idx + 1)
-      return;
-
-    // if this level is empty, it will automatically stop to search
-    for (size_t i = 0; i < m_block_pool[bin_idx].size(); ++i) {
-      auto &each_block = m_block_pool[bin_idx][i];
-      if (each_block.prev_vector_idx == prev_vector_idx) {
-        if (each_block.block.getHeight() > longest_pos.height) { // relaxation
-          longest_pos.height = each_block.block.getHeight();
-          longest_pos.vector_idx = i;
-        }
-
-        recSearchLongestLinkPos(bin_idx + 1, i, longest_pos);
-      }
-    }
-  };
-
-  BlockPosPool longest_pos(0, 0);
-
-  if (!m_block_pool.empty()) {
-    for (size_t i = 0; i < m_block_pool[0].size(); ++i) {
-      if (m_block_pool[0][i].prev_vector_idx == 0) {
-
-        if (m_block_pool[0][i].block.getHeight() > longest_pos.height) { // relaxation
-          longest_pos.height = m_block_pool[0][i].block.getHeight();
-          longest_pos.vector_idx = i;
-        }
-
-        recSearchLongestLinkPos(1, i, longest_pos); // recursive call
-      }
-    }
-  }
-
-  //  m_cache_possible_pos = longest_pos;
-  //  m_has_cache_pos = true;
-
-  return longest_pos;
 }
 
-nth_link_type UnresolvedBlockPool::getMostPossibleLink() {
-
-  //  if (m_has_cache_link)
-  //    return m_cache_possible_link;
-
-  nth_link_type ret_link;
-
-  std::lock_guard<std::recursive_mutex> guard(m_push_mutex);
-
-  // when resolved situation, the blow are the same with storage
-  // unless, they are faster than storage
-
-  ret_link.height = m_latest_confirmed_height;
-  ret_link.id = m_latest_confirmed_id;
-  ret_link.prev_id = m_latest_confirmed_prev_id;
-  ret_link.time = m_latest_confirmed_time;
-
-  if (m_block_pool.empty()) {
-    //    m_cache_possible_link = ret_link;
-    //    m_has_cache_link = true;
-    return ret_link;
-  }
-
-  BlockPosPool longest_pos = getLongestBlockPos();
-
-  if (ret_link.height < longest_pos.height) {
-
-    // must be larger or equal to 0
-    int deque_idx = static_cast<int>(longest_pos.height - m_last_height) - 1;
-
-    if (deque_idx >= 0) {
-      auto &t_block = m_block_pool[deque_idx][longest_pos.vector_idx];
-      ret_link.height = t_block.block.getHeight();
-      ret_link.id = t_block.block.getBlockId();
-      ret_link.hash = t_block.block.getHash();
-      ret_link.prev_id = t_block.block.getPrevBlockId();
-      ret_link.time = t_block.block.getBlockTime();
-    }
-  }
-
-  m_cache_possible_link = ret_link;
-  m_has_cache_link = true;
-
-  return ret_link;
-}
 
 void UnresolvedBlockPool::setupStateTree() // RDB에 있는 모든 노드를 불러올 수 있어야 하므로 관련 연동 필요
 {
@@ -480,7 +274,7 @@ bool UnresolvedBlockPool::hasUnresolvedBlocks() {}
 void UnresolvedBlockPool::invalidateCaches() {}
 bool UnresolvedBlockPool::getBlock(block_height_type t_height, const hash_t &t_prev_hash, const hash_t &t_hash, Block &ret_block) {}
 bool UnresolvedBlockPool::getBlock(block_height_type t_height, Block &ret_block) {}
-json UnresolvedBlockPool::readBackupIds() {}
+nlohmann::json UnresolvedBlockPool::readBackupIds() {}
 nth_link_type UnresolvedBlockPool::getUnresolvedLowestLink() {}
 
 } // namespace gruut

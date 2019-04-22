@@ -17,6 +17,8 @@ namespace gruut {
 struct UnresolvedBlock {
   Block block;
   int prev_vector_idx{-1};
+  size_t ssig_sum{0};
+  MemLedger m_mem_ledger;
 
   UnresolvedBlock() = default;
   UnresolvedBlock(Block &block_, int prev_queue_idx_) : block(block_), prev_vector_idx(prev_queue_idx_) {}
@@ -30,7 +32,7 @@ struct BlockPosPool {
   BlockPosPool(size_t height_, size_t vector_idx_) : height(height_), vector_idx(vector_idx_) {}
 };
 
-class UnresolvedBlockPool : public TemplateSingleton<UnresolvedBlockPool> {
+class UnresolvedBlockPool {
 private:
   std::deque<std::vector<UnresolvedBlock>> m_block_pool; // deque[n] is tree's depth n; vector's blocks are same depth(block height)
   std::recursive_mutex m_push_mutex;
@@ -40,14 +42,13 @@ private:
 
   base64_type m_latest_confirmed_id;
   std::atomic<block_height_type> m_latest_confirmed_height;
+
   timestamp_t m_latest_confirmed_time;
   base64_type m_latest_confirmed_hash;
   base64_type m_latest_confirmed_prev_id;
 
   base64_type m_head_id;
   std::atomic<block_height_type> m_head_height;
-
-  StorageManager *m_storage_manager;
 
 public:
   UnresolvedBlockPool();
@@ -91,7 +92,7 @@ private:
   void backupPool();
 
   BlockPosPool getLongestBlockPos();
-  void updateConfirmLevel();
+  void updateTotalNumSSig();
 };
 
 } // namespace gruut
