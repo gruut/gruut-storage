@@ -5,8 +5,8 @@
 namespace gruut {
 
 UnresolvedBlockPool::UnresolvedBlockPool() {
-  m_storage_manager = StorageManager::getInstance();
-  el::Loggers::getLogger("URBK");
+
+  el::Loggers::getLogger("URBP");
 }
 
 void UnresolvedBlockPool::setPool(const base64_type &last_block_id, block_height_type last_height, timestamp_t last_time,
@@ -97,8 +97,6 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
     }
   }
 
-  block_height_type aa = block.getHeight();
-
   invalidateCaches(); // 캐시 관련 함수. 추후 고려.
 
   m_push_mutex.unlock();
@@ -107,21 +105,44 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
 }
 
 void UnresolvedBlockPool::process_tx_result(Block &new_block, nlohmann::json &result) {
-  // 새로운 블럭에 대한 정보 검증을 완료한다(state root 값 검증 등)
   // 파싱한 결과로 unresolved_block에 저장될 ledger에 대한 정보를 만들고 처리
 
   if (new_block.getBlockId() != m_head_id) {
     move_head(new_block.getPrevBlockId(), new_block.getHeight());
   }
 
+  // process result json, make ledger etc..
   base64_type block_id = json::get<string>(result["block"], "id").value();
   base64_type block_height = json::get<string>(result["block"], "height").value();
 
-  // process result json, make ledger etc..
+  nlohmann::json results_json = result["results"];
+  for (auto &each_result : results_json) {
+    base58_type tx_id = json::get<string>(each_result, "txid").value();
+    bool status = json::get<bool>(each_result, "status").value();
+    string info = json::get<string>(each_result, "info").value();
+    base58_type author = json::get<string>(each_result["authority"], "author").value();
+    base58_type user = json::get<string>(each_result["authority"], "user").value();
+    base58_type receiver = json::get<string>(each_result["authority"], "receiver").value();
+    string self = json::get<string>(each_result["authority"], "self").value();
 
-  // state root 구성한 후 비교
-  calcStateRoot(); // usroot
-  calcStateRoot(); // csroot
+    vector<string> friends;
+    nlohmann::json friends_json = each_result["friend"];
+    for (auto &each_friend : freiends_json) {
+      friends.emplace_back(each_friend.dump());
+    }
+    int fee = stoi(json::get<string>(each_result, "fee").value());
+    ;
+
+    nlohmann::json queries_json = each_result["queries"];
+    for (auto &each_query : queries_json) {
+      string type = json::get<string>(each_query, "type").value();
+      nlohmann::json option = each_query["option"];
+      query_processor(type, option);
+    }
+  }
+
+  calcStateRoot(usroot);
+  calcStateRoot(csroot);
 }
 
 void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, const block_height_type target_block_height) {
@@ -155,7 +176,7 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
     }
 
     if (target_queue_idx == -1 || current_queue_idx == -1) {
-      CLOG(ERROR, "URBK") << "Something error in move_head() - Cannot find pool element";
+      CLOG(ERROR, "URBP") << "Something error in move_head() - Cannot find pool element";
       return;
     }
 
@@ -195,19 +216,19 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
       back_count++;
 
       if (target_bin_idx < -1 || current_bin_idx < -1) {
-        CLOG(ERROR, "URBK") << "Something error in move_head() - Find common ancestor(1)";
+        CLOG(ERROR, "URBP") << "Something error in move_head() - Find common ancestor(1)";
         return; // 나중에 예외처리 한 번 더 살필 것
       }
     }
 
     if (target_bin_idx == -1 && current_bin_idx == -1) {
       if (target_queue_idx != 0 || current_queue_idx != 0) {
-        CLOG(ERROR, "URBK") << "Something error in move_head() - Find common ancestor(2)";
+        CLOG(ERROR, "URBP") << "Something error in move_head() - Find common ancestor(2)";
         return;
       }
     } else if (m_block_pool[target_bin_idx][target_queue_idx].block.getBlockId() !=
                m_block_pool[current_bin_idx][current_queue_idx].block.getBlockId()) {
-      CLOG(ERROR, "URBK") << "Something error in move_head() - Find common ancestor(2)";
+      CLOG(ERROR, "URBP") << "Something error in move_head() - Find common ancestor(2)";
       return;
     }
 
@@ -219,9 +240,60 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
   }
 }
 
-void UnresolvedBlockPool::getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {
-
+void UnresolvedBlockPool::query_processor(string &type, nlomann::json &option) {
+  if (type == "user.join") {
+    base58_type uid = json::get<string>(option, "uid").value();
+    string gender = json::get<string>(option, "gender").value();
+    string age = stoi(json::get<string>(option, "age").value());
+    string isc_type = json::get<string>(option, "isc_type").value();
+    string isc_code = json::get<string>(option, "isc_code").value();
+    string location = json::get<string>(option, "location").value();
+  } else if (type == "user.cert") {
+    base58_type uid = json::get<string>(option, "uid").value();
+    timestamp_t notbefore = static_cast<uint64_t>(stoll(json::get<string>(option, "notbefore").value()));
+    timestamp_t notafter = static_cast<uint64_t>(stoll(json::get<string>(option, "notafter").value()));
+    string sn = json::get<string>(option, "sn").value();
+    string x509 = json::get<string>(option, "x509").value();
+  } else if (type == "v.incinerate") {
+    string amount = stoi(json::get<string>(option, "amount").value());
+    string pid = json::get<string>(option, "pid").value();
+  } else if (type == "v.create") {
+    string amount = stoi(json::get<string>(option, "amount").value());
+    string name = json::get<string>(option, "name").value();
+    string type = json::get<string>(option, "type").value();
+    string condition = json::get<string>(option, "condition").value();
+  } else if (type == "v.transfer") {
+    base58_type from = json::get<string>(option, "from").value();
+    base58_type to = json::get<string>(option, "to").value();
+    string amount = stoi(json::get<string>(option, "amount").value());
+    string unit = json::get<string>(option, "unit").value();
+    string pid = json::get<string>(option, "pid").value();
+    string condition = json::get<string>(option, "condition").value();
+  } else if (type == "scope.user") {
+    string name = json::get<string>(option, "unit").value();
+    string value = json::get<string>(option, "value").value();
+    base58_type uid = json::get<string>(option, "uid").value();
+    string pid = json::get<string>(option, "pid").value();
+    string condition = json::get<string>(option, "condition").value();
+  } else if (type == "scope.contract") {
+    string name = json::get<string>(option, "unit").value();
+    string value = json::get<string>(option, "value").value();
+    string cid = json::get<string>(option, "cid").value();
+    string pid = json::get<string>(option, "pid").value();
+  } else if (type == "run.query") {
+    string type = json::get<string>(each_query, "type").value();
+    nlohmann::json query = option["query"];
+    timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
+  } else if (type == "run.contract") {
+    string cid = json::get<string>(option, "cid").value();
+    string input = json::get<string>(option, "input").value();
+    timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
+  } else {
+    CLOG(ERROR, "URBP") << "Something error in query_processor()";
+  }
 }
+
+void UnresolvedBlockPool::getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {}
 
 void UnresolvedBlockPool::updateTotalNumSSig() {
   if (m_block_pool.empty())
@@ -242,10 +314,7 @@ void UnresolvedBlockPool::updateTotalNumSSig() {
   }
 }
 
-BlockPosPool UnresolvedBlockPool::getLongestBlockPos() {
-
-}
-
+BlockPosPool UnresolvedBlockPool::getLongestBlockPos() {}
 
 void UnresolvedBlockPool::setupStateTree() // RDB에 있는 모든 노드를 불러올 수 있어야 하므로 관련 연동 필요
 {

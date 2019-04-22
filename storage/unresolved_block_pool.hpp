@@ -80,6 +80,7 @@ public:
 
   void process_tx_result(Block &new_block, nlohmann::json &result);
   void move_head(const std::string &block_id_b64, const block_height_type target_block_height);
+  void query_processor(string &type, nlomann::json &option);
 
   bool hasUnresolvedBlocks();
   void invalidateCaches();
