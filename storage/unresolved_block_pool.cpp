@@ -108,7 +108,7 @@ void UnresolvedBlockPool::processTxResult(UnresolvedBlock &new_UR_block, nlohman
   // 파싱한 결과로 unresolved_block에 저장될 ledger에 대한 정보를 만들고 처리
 
   if (new_UR_block.block.getBlockId() != m_head_id) {
-    moveHead(new_UR_block.block.getPrevBlockId(), new_UR_block.block.getHeight());
+    moveHead(new_UR_block.block.getPrevBlockId(), new_UR_block.block.getHeight() - 1);
   }
 
   // process result json, make ledger etc..
@@ -165,8 +165,6 @@ void UnresolvedBlockPool::processTxResult(UnresolvedBlock &new_UR_block, nlohman
 }
 
 void UnresolvedBlockPool::moveHead(const base64_type &target_block_id_b64, const block_height_type target_block_height) {
-  // missing link 등에 대한 예외처리를 추가해야 할 필요 있음
-
   if (!target_block_id_b64.empty()) {
     // latest_confirmed의 height가 10이었고, 현재 옮기려는 타겟의 height가 12라면 m_block_pool[1]에 있어야 한다
     int target_height = target_block_height;
@@ -184,15 +182,8 @@ void UnresolvedBlockPool::moveHead(const base64_type &target_block_id_b64, const
     // 현재 head부터 confirmed까지의 경로 구함 -> vector를 resize해서 depth에 맞춰서 집어넣음
     // latest_confirmed의 height가 10이었고, 현재 head의 height가 11이라면 m_block_pool[0]에 있어야 한다
     int current_height = static_cast<int>(m_head_height);
-    int current_bin_idx = static_cast<int>(m_head_height - m_latest_confirmed_height) - 1;
-    int current_queue_idx = -1;
-
-    for (size_t i = 0; i < m_block_pool[current_bin_idx].size(); ++i) {
-      if (m_head_id == m_block_pool[current_bin_idx][i].block.getBlockId()) {
-        current_queue_idx = static_cast<int>(i);
-        break;
-      }
-    }
+    int current_bin_idx = m_head_bin_idx;
+    int current_queue_idx = m_head_queue_idx;
 
     if (target_queue_idx == -1 || current_queue_idx == -1) {
       CLOG(ERROR, "URBP") << "Something error in move_head() - Cannot find pool element";
@@ -251,11 +242,42 @@ void UnresolvedBlockPool::moveHead(const base64_type &target_block_id_b64, const
       return;
     }
 
-    // 만남지점까지 back, 그리고 new_head까지 forward하는 함수를 구현
-    // 이거 구현하려면 ledger 관련, state tree 관련부터 해야함. 그래야 할 수 있음.
+    current_height = static_cast<int>(m_head_height);
+    current_bin_idx = m_head_bin_idx;
+    current_queue_idx = m_head_queue_idx;
 
-    for (auto &deque_aa :)
-      where_to_go[0].first, where_to_go[0].second; // front를 하기 위한 방향 저장된것.
+    for (int i = 0; i < back_count; i++) {
+      current_queue_idx = m_block_pool[current_bin_idx][current_queue_idx].prev_vector_idx;
+      current_bin_idx--;
+      current_height--;
+
+      // TODO: Something in ledger process, state tree process
+    }
+
+    for (auto &deque_front : where_to_go) {
+      if (current_bin_idx + 1 != deque_front.first) {
+        CLOG(ERROR, "URBP") << "Something height error in move_head() - go front";
+        return;
+      }
+      current_bin_idx = deque_front.first;
+      current_queue_idx = deque_front.second;
+      current_height++; // = m_block_pool[current_bin_idx][current_queue_idx].block.getHeight()
+
+      m_block_pool[current_bin_idx][current_queue_idx];
+      // TODO: Something in ledger process, state tree process
+    }
+
+    m_head_id = m_block_pool[m_head_bin_idx][m_head_queue_idx].block.getBlockId();
+    m_head_height = current_height;
+    m_head_bin_idx = current_bin_idx;
+    m_head_queue_idx = current_queue_idx;
+
+    if (m_block_pool[m_head_bin_idx][m_head_queue_idx].block.getHeight() != m_head_height) {
+      CLOG(ERROR, "URBP") << "Something error in move_head() - end part, check height";
+      return;
+    }
+
+    // TODO: missing link 등에 대한 예외처리를 추가해야 할 필요 있음
   }
 }
 

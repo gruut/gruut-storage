@@ -49,6 +49,8 @@ private:
 
   base64_type m_head_id;
   std::atomic<block_height_type> m_head_height;
+  int m_head_bin_idx;
+  int m_head_queue_idx;
 
 public:
   UnresolvedBlockPool();
