@@ -42,7 +42,6 @@ private:
 
   base64_type m_latest_confirmed_id;
   std::atomic<block_height_type> m_latest_confirmed_height;
-
   timestamp_t m_latest_confirmed_time;
   base64_type m_latest_confirmed_hash;
   base64_type m_latest_confirmed_prev_id;
@@ -73,9 +72,7 @@ public:
   bool prepareBins(block_height_type t_height);
   unblk_push_result_type push(Block &block, bool is_restore = false);
 
-  void getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<std::string> &drop_blocks);
-
-  nth_link_type getMostPossibleLink();
+  bool resolveBlock(Block &block);
 
   void restorePool();
   void setupStateTree();
@@ -92,18 +89,14 @@ public:
   bool queryRunQuery(UnresolvedBlock &UR_block, nlohmann::json &option);
   bool queryRunContract(UnresolvedBlock &UR_block, nlohmann::json &option);
 
-  bool hasUnresolvedBlocks();
   void invalidateCaches();
-  bool getBlock(block_height_type t_height, const hash_t &t_prev_hash, const hash_t &t_hash, Block &ret_block);
-  bool getBlock(block_height_type t_height, Block &ret_block);
-  nth_link_type getUnresolvedLowestLink();
 
 private:
-  nlohmann::json readBackupIds();
-  void backupPool();
-
-  BlockPosPool getLongestBlockPos();
+  bool resolveBlocksStepByStep(Block &block);
   void updateTotalNumSSig();
+
+  void backupPool();
+  nlohmann::json readBackupIds();
 };
 
 } // namespace gruut

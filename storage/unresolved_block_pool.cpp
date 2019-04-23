@@ -101,6 +101,8 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
 
   m_push_mutex.unlock();
 
+  resolveBlock(block);
+
   return ret_val;
 }
 
@@ -365,7 +367,70 @@ bool UnresolvedBlockPool::queryRunContract(UnresolvedBlock &UR_block, nlohmann::
   // TODO: authority.user를 현재 user로 대체하여 Scheduler에게 요청 전송
 }
 
-void UnresolvedBlockPool::getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {}
+bool UnresolvedBlockPool::resolveBlock(Block &block) {
+  if (!lateStage(block)) {
+    return false;
+  }
+
+  if (block.getHeight() - m_latest_confirmed_height > config::BLOCK_CONFIRM_LEVEL) {
+    if (!resolveBlocksStepByStep(block)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool UnresolvedBlockPool::resolveBlocksStepByStep(Block &block) {
+  updateTotalNumSSig();
+
+  if (m_block_pool.size() < 2 || m_block_pool[0].empty() || m_block_pool[1].empty())
+    return false;
+
+  size_t highest_total_ssig = 0;
+  int resolved_block_idx = -1;
+
+  for (size_t i = 0; i < m_block_pool[0].size(); ++i) {
+    if (m_block_pool[0][i].prev_vector_idx == 0 && m_block_pool[0][i].ssig_sum > highest_total_ssig) {
+      highest_total_ssig = m_block_pool[0][i].ssig_sum;
+      resolved_block_idx = static_cast<int>(i);
+    }
+  }
+
+  if (resolved_block_idx < 0 || highest_total_ssig < config::MIN_SIGNATURE_COLLECT_SIZE)
+    return false;
+
+  bool is_after = false;
+  for (auto &each_block : m_block_pool[1]) {
+    if (each_block.prev_vector_idx == resolved_block_idx) { // some block links this block
+      is_after = true;
+      break;
+    }
+  }
+
+  if (!is_after)
+    return false;
+
+  m_latest_confirmed_prev_id = m_latest_confirmed_id;
+
+  m_latest_confirmed_id = m_block_pool[0][resolved_block_idx].block.getBlockId();
+  m_latest_confirmed_hash = m_block_pool[0][resolved_block_idx].block.getBlockHash();
+  m_latest_confirmed_height = m_block_pool[0][resolved_block_idx].block.getHeight();
+
+  m_block_pool.pop_front();
+
+  if (m_block_pool.empty())
+    return false;
+
+  for (auto &each_block : m_block_pool[0]) {
+    if (each_block.block.getPrevBlockId() == m_latest_confirmed_id) {
+      each_block.prev_vector_idx = 0;
+    } else {
+      // this block is unlinkable => to be deleted
+      each_block.prev_vector_idx = -1;
+    }
+  }
+}
 
 void UnresolvedBlockPool::updateTotalNumSSig() {
   if (m_block_pool.empty())
@@ -386,36 +451,12 @@ void UnresolvedBlockPool::updateTotalNumSSig() {
   }
 }
 
-BlockPosPool UnresolvedBlockPool::getLongestBlockPos() {}
-
 void UnresolvedBlockPool::setupStateTree() // RDB에 있는 모든 노드를 불러올 수 있어야 하므로 관련 연동 필요
-{
-  vector<pair<int, vector<string>>> all = m_server.selectAll();
-  for (auto item : all) {
-    //                printf("%5d\t", item.first);
-    //                for(auto column: item.second)
-    //                    printf("%15s\t", column.c_str());
-    //                printf("\n");
-
-    test_data data;
-    //  data.record_id = item.first;
-    data.user_id = item.second[USER_ID];
-    data.var_type = item.second[VAR_TYPE];
-    data.var_name = item.second[VAR_NAME];
-    data.var_value = item.second[VAR_VALUE];
-    uint path = (uint)stoul(item.second[PATH]);
-    m_user_state_tree.addNode(path, data);
-  }
-
-  m_user_state_tree.printTreePostOrder();
-}
+{}
 
 // 추후 필요시 구현
-bool UnresolvedBlockPool::hasUnresolvedBlocks() {}
 void UnresolvedBlockPool::invalidateCaches() {}
-bool UnresolvedBlockPool::getBlock(block_height_type t_height, const hash_t &t_prev_hash, const hash_t &t_hash, Block &ret_block) {}
-bool UnresolvedBlockPool::getBlock(block_height_type t_height, Block &ret_block) {}
+void backupPool() {}
 nlohmann::json UnresolvedBlockPool::readBackupIds() {}
-nth_link_type UnresolvedBlockPool::getUnresolvedLowestLink() {}
 
 } // namespace gruut
