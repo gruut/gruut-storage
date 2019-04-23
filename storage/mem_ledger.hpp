@@ -16,7 +16,7 @@ struct LedgerRecord {
   std::string var_name;
   std::string var_val;
   std::string var_type;
-  std::string var_owner; // user의 경우 uid, contract의 경우 cid
+  std::string var_owner; // user scope의 경우 uid, contract scope의 경우 cid
   timestamp_t up_time;
   block_height_type up_block; // user scope only
   std::string condition;      // user scope only
@@ -27,15 +27,25 @@ struct LedgerRecord {
                block_height_type up_block_, std::string condition_)
       : var_name(var_name_), var_val(var_val_), var_type(var_type_), var_owner(var_owner_), up_time(up_time_), up_block(up_block_),
         condition(condition_) {
-    which_scope = LedgerType::USERSCOPE;
-    pid = Sha256::hash(var_name + var_type + var_owner + condition); // 해시될 내용의 처리 방법은 변경될 수 있습니다
+    //    which_scope = LedgerType::USERSCOPE;
+    BytesBuilder bytes_builder;
+    bytes_builder.append(var_name);
+    bytes_builder.append(var_type);
+    bytes_builder.appendBase<58>(var_owner);
+    bytes_builder.append(condition);
+    pid = Sha256::hash(bytes_builder.getBytes());
   }
 
   LedgerRecord(std::string var_name_, std::string var_val_, std::string var_type_, std::string var_owner_, timestamp_t up_time_,
                std::string var_info_)
       : var_name(var_name_), var_val(var_val_), var_type(var_type_), var_owner(var_owner_), up_time(up_time_), var_info(var_info_) {
-    which_scope = LedgerType::CONTRACTSCOPE;
-    pid = Sha256::hash(var_name + var_type + var_owner + var_info); // 해시될 내용의 처리 방법은 변경될 수 있습니다
+    //    which_scope = LedgerType::CONTRACTSCOPE;
+    BytesBuilder bytes_builder;
+    bytes_builder.append(var_name);
+    bytes_builder.append(var_type);
+    bytes_builder.append(var_owner);
+    bytes_builder.append(var_info);
+    pid = Sha256::hash(bytes_builder.getBytes());
   }
 };
 

@@ -230,6 +230,10 @@ public:
   base58_type getBlockProdId() {
     return m_block_prod_info.signer_id;
   }
+
+  base64_type getBlockProdSig() {
+    return m_block_prod_info.signer_sig;
+  }
 };
 } // namespace gruut
 #endif

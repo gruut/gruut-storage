@@ -24,7 +24,7 @@ private:
   string m_contract_id;
   base58_type m_receiver_id;
   int m_fee;
-  string m_tx_input_cbor; // to_cbor 된 상태
+  bytes m_tx_input_cbor; // to_cbor 된 상태
 
   base58_type m_tx_user_id;
   string m_tx_user_pk;
@@ -65,7 +65,7 @@ public:
   }
 
   void setTxInputCbor(nlohmann::json &input_array) {
-    m_tx_input_cbor = TypeConverter::encodeBase<64>(nlohmann::json::to_cbor(input_array));  // ? 이게 맞나?
+    m_tx_input_cbor = nlohmann::json::to_cbor(input_array);
   }
 
   bool setEndorsers(nlohmann::json &endorser_array) {
@@ -107,7 +107,7 @@ public:
     return m_fee;
   }
 
-  string getTxInputCbor() {
+  bytes getTxInputCbor() {
     return m_tx_input_cbor;
   }
 

@@ -17,7 +17,7 @@ enum class BpStatus { IN_BOOT_WAIT, IDLE, PRIMARY, SECONDARY, ERROR_ON_SIGNERS, 
 
 enum class TransactionType { DIGESTS, CERTIFICATES, IMMORTALSMS, UNKNOWN };
 
-enum class LedgerType : bool { USERSCOPE, CONTRACTSCOPE };
+enum class LedgerType : bool { USERSCOPE = true, CONTRACTSCOPE = false };
 
 const std::string TXTYPE_CERTIFICATES = "CERTIFICATES";
 const std::string TXTYPE_DIGESTS = "DIGESTS";

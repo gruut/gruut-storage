@@ -160,8 +160,8 @@ void UnresolvedBlockPool::processTxResult(UnresolvedBlock &new_UR_block, nlohman
     }
   }
 
-  calcStateRoot(usroot);
-  calcStateRoot(csroot);
+  //  calcStateRoot(usroot);  // TODO: 추후 구현
+  //  calcStateRoot(csroot);  // TODO: 추후 구현
 }
 
 void UnresolvedBlockPool::moveHead(const base64_type &target_block_id_b64, const block_height_type target_block_height) {

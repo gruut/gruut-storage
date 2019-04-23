@@ -28,30 +28,42 @@ bool calcStateRoot() {
 }
 
 bool verifyTransaction(Transaction &tx, string world, string chain) {
-  hash_t tx_id = Sha256::hash(tx.getUserId() + world + chain + to_string(tx.getTxTime()) + tx.getSeed() +
-                              (tx.getReceiverId().empty() ? tx.getReceiverId() : "") + (tx.getFee() != 0 ? to_string(tx.getFee()) : "") +
-                              tx.getContractId());
+  BytesBuilder tx_id_builder;
+  tx_id_builder.appendBase<58>(tx.getUserId());
+  tx_id_builder.append(world);
+  tx_id_builder.append(chain);
+  tx_id_builder.appendDec(tx.getTxTime());
+  if (!tx.getReceiverId().empty())
+    tx_id_builder.appendBase<58>(tx.getReceiverId());
+  tx_id_builder.appendDec(tx.getFee());
+  tx_id_builder.append(tx.getContractId());
 
-  if (tx.getTxid() != TypeConverter::encodeBase<64>(tx_id)) {
+  hash_t tx_id = Sha256::hash(tx_id_builder.getBytes());
+  if (tx.getTxid() != TypeConverter::encodeBase<58>(tx_id)) {
     return false;
   }
 
-  string tx_plain = tx.getTxid() + tx.getTxInputCbor();
+  BytesBuilder tx_plain_builder;
+  tx_plain_builder.appendBase<58>(tx.getTxid());
+  tx_plain_builder.append(TypeConverter::bytesToString(tx.getTxInputCbor()));
+
+  bytes tx_plain = tx_plain_builder.getBytes();
 
   vector<Endorser> endorsers = tx.getEndorsers();
   for (auto &each_end : endorsers) {
-    if (each_end.endorser_signature != SignByEndorser(tx_plain)) { // SignByEndorser가 확정되면 변경해야 함
+    if (each_end.endorser_signature != SignByEndorser(tx_plain)) { // TODO: SignByEndorser가 확정되면 변경해야 함
       return false;
     }
   }
 
-  string endorsers_info = "";
+  BytesBuilder user_sig_builder;
+  user_sig_builder.append(TypeConverter::bytesToString(tx_plain));
   for (auto &each_end : endorsers) {
-    endorsers_info += each_end.endorser_id;
-    endorsers_info += each_end.endorser_pk;
-    endorsers_info += each_end.endorser_signature;
+    user_sig_builder.appendBase<58>(each_end.endorser_id);
+    user_sig_builder.append(each_end.endorser_pk);
+    user_sig_builder.appendBase<64>(each_end.endorser_signature);
   }
-  base64_type user_sig = SignByUser(tx_plain + endorsers_info); // SignByUser가 확정되면 변경해야 함
+  base64_type user_sig = SignByUser(user_sig_builder.getBytes()); // TODO: SignByUser가 확정되면 변경해야 함
   if (tx.getUserSig() != user_sig) {
     return false;
   }
@@ -66,8 +78,15 @@ bool verifyBlock(Block &block) {
   // TODO: block time validation 추가
   //
 
-  hash_t block_id = Sha256::hash(block.getBlockProdId() + to_string(block.getBlockTime()) + block.getWorld() + block.getChain() +
-                                 to_string(block.getHeight()) + block.getPrevBlockId());
+  BytesBuilder block_id_builder;
+  block_id_builder.appendBase<58>(block.getBlockProdId());
+  block_id_builder.appendDec(block.getBlockTime());
+  block_id_builder.append(block.getWorldId());
+  block_id_builder.append(block.getChainId());
+  block_id_builder.appendDec(block.getHeight());
+  block_id_builder.appendBase<58>(block.getPrevBlockId());
+
+  hash_t block_id = Sha256::hash(block_id_builder.getBytes());
   if (block.getBlockId() != TypeConverter::encodeBase<58>(block_id)) {
     return false;
   }
@@ -77,7 +96,13 @@ bool verifyBlock(Block &block) {
     return false;
   }
 
-  hash_t block_hash = Sha256::hash(block.getBlockId() + block.getTxRoot() + block.getUserStateRoot() + block.getContractStateRoot());
+  BytesBuilder block_hash_builder;
+  block_hash_builder.appendBase<58>(block.getBlockId());
+  block_hash_builder.appendBase<64>(block.getTxRoot());
+  block_hash_builder.appendBase<64>(block.getUserStateRoot());
+  block_hash_builder.appendBase<64>(block.getContractStateRoot());
+
+  hash_t block_hash = Sha256::hash(block_hash_builder.getBytes());
   if (block.getBlockHash() != TypeConverter::encodeBase<64>(block_hash)) {
     return false;
   }
@@ -86,7 +111,7 @@ bool verifyBlock(Block &block) {
   vector<string> signer_id_sigs;
   signer_id_sigs.clear();
   for (auto &each_signer : signers) {
-    string id_sig = each_signer.signer_id + each_signer.signer_sig;
+    string id_sig = each_signer.signer_id + each_signer.signer_sig; // need bytebuilder?
     signer_id_sigs.emplace_back(id_sig);
   }
   vector<hash_t> sg_merkle_tree = makeStaticMerkleTree(signer_id_sigs);
@@ -99,9 +124,15 @@ bool verifyBlock(Block &block) {
   // TODO: cs_state_root 검증 추가
   //
 
-  string merger_sig = SignByMerger(to_string(block.getBlockPubTime()) + block.getBlockHash() + to_string(block.getNumTransaction()) +
-                                   to_string(block.getNumSigners()) + block.getSgRoot());
-  if (block.get() != merger_sig) {
+  BytesBuilder prod_sig_builder;
+  prod_sig_builder.appendDec(block.getBlockPubTime());
+  prod_sig_builder.appendBase<64>(block.getBlockHash());
+  prod_sig_builder.appendDec(block.getNumTransaction()); // 32bit? 64bit?
+  prod_sig_builder.appendDec(block.getNumSigners());     // 32bit? 64bit?
+  prod_sig_builder.appendBase<64>(block.getSgRoot());
+
+  string prod_sig = SignByMerger(prod_sig_builder.getBytes()); // TODO: SignByMerger가 확정되면 변경해야 함
+  if (block.getBlockProdSig() != prod_sig) {
     return false;
   }
 }
@@ -120,16 +151,29 @@ bool earlyStage(Block &block) {
 }
 
 bool lateStage(Block &block) {
-  hash_t block_id = Sha256::hash(block.getBlockProdId() + to_string(block.getBlockTime()) + block.getWorldId() + block.getChainId() +
-                                 to_string(block.getHeight()) + block.getPrevBlockId());
+  BytesBuilder block_id_builder;
+  block_id_builder.appendBase<58>(block.getBlockProdId());
+  block_id_builder.appendDec(block.getBlockTime());
+  block_id_builder.append(block.getWorldId());
+  block_id_builder.append(block.getChainId());
+  block_id_builder.appendDec(block.getHeight());
+  block_id_builder.appendBase<58>(block.getPrevBlockId());
+
+  hash_t block_id = Sha256::hash(block_id_builder.getBytes());
   if (block.getBlockId() != TypeConverter::encodeBase<58>(block_id)) {
     return false;
   }
 
+  BytesBuilder signer_sig_builder;
+  signer_sig_builder.appendBase<58>(block.getBlockId());
+  signer_sig_builder.appendBase<64>(block.getTxRoot());
+  signer_sig_builder.appendBase<64>(block.getUserStateRoot());
+  signer_sig_builder.appendBase<64>(block.getContractStateRoot());
+
+  hash_t block_info_hash = Sha256::hash(signer_sig_builder.getBytes());
   vector<Signature> signers = block.getSigners();
-  hash_t id_tx_us_cs = Sha256::hash(block.getBlockId() + block.getTxRoot() + block.getUserStateRoot() + block.getContractStateRoot());
   for (auto &each_signer : signers) {
-    base64_type ssig = SignBySigner(id_tx_us_cs); // SignBySigner가 확정되면 변경해야 함
+    base64_type ssig = SignBySigner(block_info_hash); // TODO: SignBySigner가 확정되면 변경해야 함
     if (each_signer.signer_sig != ssig) {
       return false;
     }
