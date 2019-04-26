@@ -10,96 +10,74 @@
 #include <vector>
 
 namespace gruut {
-//
-//struct KeyValue {
-//  std::string key;
-//  std::string value;
-//
-//  KeyValue(std::string key_, std::string value_) : key(std::move(key_)), value(std::move(value_)) {}
-//};
-//
-//struct LedgerRecord {
-//  std::string key;
-//  std::string value;
-//  std::string block_id_b64;
-//  LedgerRecord(std::string key_, std::string value_, std::string block_id_b64_)
-//      : key(std::move(key_)), value(std::move(value_)), block_id_b64(std::move(block_id_b64_)) {}
-//};
-//
-//class MemLedger {
-//private:
-//  std::list<LedgerRecord> m_ledger;
-//  std::mutex m_active_mutex;
-//
-//public:
-//  MemLedger() {
-//    el::Loggers::getLogger("MEML");
-//  }
-//
-//  bool push(std::string key, std::string value, std::string block_id_b64) {
-//    std::lock_guard<std::mutex> lock(m_active_mutex);
-//    m_ledger.emplace_back(std::move(key), std::move(value), std::move(block_id_b64));
-//
-//    return true;
-//  }
-//
-//  bool append(MemLedger &other_ledger, const std::string &prefix = "") {
-//    std::lock_guard<std::mutex> lock(m_active_mutex);
-//    std::list<LedgerRecord> mem_ledger = other_ledger.getLedger();
-//    if (!prefix.empty()) {
-//      for (auto &record : mem_ledger) {
-//        record.key = prefix + record.key; // key to wrap key
-//      }
-//    }
-//
-//    m_ledger.insert(m_ledger.end(), mem_ledger.begin(), mem_ledger.end()); // mem_ledger(지역변수)의 내용들을 m_ledger의 뒤에 추가
-//
-//    return true;
-//  }
-//
-//  bool getVal(const std::string &key, const std::string &block_id_b64, std::string &ret_val) {
-//    std::lock_guard<std::mutex> lock(m_active_mutex);
-//    bool is_found = false;
-//    for (auto &each : m_ledger) {
-//      if (each.key == key && each.block_id_b64 == block_id_b64) {
-//        ret_val = each.value;
-//        is_found = true;
-//        break;
-//      }
-//    }
-//
-//    return is_found;
-//  }
-//
-//  std::vector<KeyValue> getKV(const std::string &block_id_b64) {
-//    std::vector<KeyValue> ret_kv;
-//    std::lock_guard<std::mutex> lock(m_active_mutex);
-//    for (auto &each : m_ledger) {
-//      if (each.block_id_b64 == block_id_b64) {
-//        ret_kv.emplace_back(each.key, each.value);
-//      }
-//    }
-//
-//    return ret_kv;
-//  }
-//
-//  void dropKV(const std::string &block_id_b64) {
-//    std::lock_guard<std::mutex> lock(m_active_mutex);
-//    m_ledger.remove_if([this, &block_id_b64](LedgerRecord &t) { return (t.block_id_b64 == block_id_b64); });
-//  }
-//
-//  void clear() {
-//    std::lock_guard<std::mutex> lock(m_active_mutex);
-//    m_ledger.clear();
-//  }
-//
-//protected:
-//  std::list<LedgerRecord> getLedger() {
-//    return m_ledger;
-//  }
-//};
-//
-//using mem_ledger_t = MemLedger;
+
+struct LedgerRecord {
+  bool which_scope; // user scope와 contract scope를 구분하기 위한 변수. LedgerType::
+  std::string var_name;
+  std::string var_val;
+  std::string var_type;
+  std::string var_owner; // user scope의 경우 uid, contract scope의 경우 cid
+  timestamp_t up_time;
+  block_height_type up_block; // user scope only
+  std::string tag;      // user scope only
+  std::string var_info;       // contract scope only
+  hash_t pid;
+
+  LedgerRecord(std::string var_name_, std::string var_val_, std::string var_type_, std::string var_owner_, timestamp_t up_time_,
+               block_height_type up_block_, std::string tag_)
+      : var_name(var_name_), var_val(var_val_), var_type(var_type_), var_owner(var_owner_), up_time(up_time_), up_block(up_block_),
+        tag(tag_) {
+    //    which_scope = LedgerType::USERSCOPE;
+    BytesBuilder bytes_builder;
+    bytes_builder.append(var_name);
+    bytes_builder.append(var_type);
+    bytes_builder.appendBase<58>(var_owner);
+    bytes_builder.append(tag);
+    pid = Sha256::hash(bytes_builder.getBytes());
+  }
+
+  LedgerRecord(std::string var_name_, std::string var_val_, std::string var_type_, std::string var_owner_, timestamp_t up_time_,
+               std::string var_info_)
+      : var_name(var_name_), var_val(var_val_), var_type(var_type_), var_owner(var_owner_), up_time(up_time_), var_info(var_info_) {
+    //    which_scope = LedgerType::CONTRACTSCOPE;
+    BytesBuilder bytes_builder;
+    bytes_builder.append(var_name);
+    bytes_builder.append(var_type);
+    bytes_builder.append(var_owner);
+    bytes_builder.append(var_info);
+    pid = Sha256::hash(bytes_builder.getBytes());
+  }
+};
+
+class MemLedger {
+private:
+  std::list<LedgerRecord> m_ledger;
+  std::mutex m_active_mutex;
+
+public:
+  MemLedger() {
+    el::Loggers::getLogger("MEML");
+  }
+
+  bool addUserScope(std::string var_name, std::string var_val, std::string var_type, std::string var_owner, timestamp_t up_time,
+                    block_height_type up_block, std::string tag) {
+    std::lock_guard<std::mutex> lock(m_active_mutex);
+
+    // TODO: 현 위치에서 RDB까지 체크하면서 값의 갱신 결과 계산
+
+    m_ledger.emplace_back(var_name, var_val, var_type, var_owner, up_time, up_block, tag);
+
+    return true;
+  }
+
+  bool addContractScope(std::string var_name, std::string var_val, std::string var_type, std::string var_owner, timestamp_t up_time,
+                        std::string var_info) {
+    std::lock_guard<std::mutex> lock(m_active_mutex);
+    m_ledger.emplace_back(var_name, var_val, var_type, var_owner, up_time, var_info);
+
+    return true;
+  }
+};
 } // namespace gruut
 
-#endif // WORKSPACE_MEM_LEDGER_HPP
+#endif

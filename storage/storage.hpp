@@ -11,13 +11,9 @@
 #include "../chain/static_merkle_tree.hpp"
 #include "../chain/types.hpp"
 #include "../utils/bytes_builder.hpp"
-#include "../utils/rsa.hpp"
-#include "../utils/safe.hpp"
 #include "../utils/sha256.hpp"
 #include "../utils/template_singleton.hpp"
 #include "../utils/time.hpp"
-
-#include "setting.hpp"
 
 #include <botan-2/botan/asn1_time.h>
 #include <botan-2/botan/auto_rng.h>
@@ -36,7 +32,6 @@
 #include <map>
 
 using namespace std;
-using json = nlohmann::json;
 
 typedef unsigned int uint;
 
@@ -107,6 +102,6 @@ namespace gruut {
 //void readConfig();
 //void setupDB();
 //void destroyDB();
-//} // namespace gruut
+} // namespace gruut
 
 #endif // WORKSPACE_STORAGE_HPP

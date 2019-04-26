@@ -1,9 +1,8 @@
 #include "storage.hpp"
 
 namespace gruut {
-//
+
 //Storage::Storage() {
-//  readConfig();
 //  setupDB();
 //
 //  el::Loggers::getLogger("STRG");
@@ -46,18 +45,6 @@ namespace gruut {
 //  m_db_blockid_height = nullptr;
 //  m_db_ledger = nullptr;
 //  m_db_backup = nullptr;
-//}
-//
-//void Storage::readConfig() {
-//  ifstream config_file("/home/skmoon/workspace/gruut-storage/storage/storage_config.json");
-//  if (!config_file) {
-//    cout << "ifstream error... Please check config file path" << endl;
-//    return;
-//  }
-//  string config_content((istreambuf_iterator<char>(config_file)), istreambuf_iterator<char>());
-//  json js = json::parse(config_content);
-//
-//  MAX_LAYER_SIZE = js["MAX_LAYER_SIZE"];
 //}
 //
 //void Storage::setupDB() {

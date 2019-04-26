@@ -5,8 +5,8 @@
 namespace gruut {
 
 UnresolvedBlockPool::UnresolvedBlockPool() {
-  m_storage_manager = StorageManager::getInstance();
-  el::Loggers::getLogger("URBK");
+
+  el::Loggers::getLogger("URBP");
 }
 
 void UnresolvedBlockPool::setPool(const base64_type &last_block_id, block_height_type last_height, timestamp_t last_time,
@@ -97,8 +97,6 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
     }
   }
 
-  block_height_type aa = block.getHeight();
-
   invalidateCaches(); // 캐시 관련 함수. 추후 고려.
 
   m_push_mutex.unlock();
@@ -106,27 +104,67 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
   return ret_val;
 }
 
-void UnresolvedBlockPool::process_tx_result(Block &new_block, nlohmann::json &result) {
-  // 새로운 블럭에 대한 정보 검증을 완료한다(state root 값 검증 등)
+void UnresolvedBlockPool::processTxResult(UnresolvedBlock &new_UR_block, nlohmann::json &result) {
   // 파싱한 결과로 unresolved_block에 저장될 ledger에 대한 정보를 만들고 처리
 
-  if (new_block.getBlockId() != m_head_id) {
-    move_head(new_block.getPrevBlockId(), new_block.getHeight());
+  if (new_UR_block.block.getBlockId() != m_head_id) {
+    moveHead(new_UR_block.block.getPrevBlockId(), new_UR_block.block.getHeight() - 1);
   }
 
+  // process result json, make ledger etc..
   base64_type block_id = json::get<string>(result["block"], "id").value();
   base64_type block_height = json::get<string>(result["block"], "height").value();
 
-  // process result json, make ledger etc..
+  nlohmann::json results_json = result["results"];
+  for (auto &each_result : results_json) {
+    base58_type tx_id = json::get<string>(each_result, "txid").value();
+    bool status = json::get<bool>(each_result, "status").value();
+    string info = json::get<string>(each_result, "info").value();
+    base58_type author = json::get<string>(each_result["authority"], "author").value();
+    base58_type user = json::get<string>(each_result["authority"], "user").value();
+    base58_type receiver = json::get<string>(each_result["authority"], "receiver").value();
+    string self = json::get<string>(each_result["authority"], "self").value();
 
-  // state root 구성한 후 비교
-  calcStateRoot(); // usroot
-  calcStateRoot(); // csroot
+    vector<string> friends;
+    nlohmann::json friends_json = each_result["friend"];
+    for (auto &each_friend : friends_json) {
+      friends.emplace_back(each_friend.dump());
+    }
+    int fee = stoi(json::get<string>(each_result, "fee").value());
+
+    nlohmann::json queries_json = each_result["queries"];
+    for (auto &each_query : queries_json) {
+      string type = json::get<string>(each_query, "type").value();
+      nlohmann::json option = each_query["option"];
+      if (type == "user.join") {
+        queryUserJoin(new_UR_block, option);
+      } else if (type == "user.cert") {
+        queryUserCert(new_UR_block, option);
+      } else if (type == "v.incinerate") {
+        queryIncinerate(new_UR_block, option);
+      } else if (type == "v.create") {
+        queryCreate(new_UR_block, option);
+      } else if (type == "v.transfer") {
+        queryTransfer(new_UR_block, option);
+      } else if (type == "scope.user") {
+        queryUserScope(new_UR_block, option);
+      } else if (type == "scope.contract") {
+        queryContractScope(new_UR_block, option);
+      } else if (type == "run.query") {
+        queryRunQuery(new_UR_block, option);
+      } else if (type == "run.contract") {
+        queryRunContract(new_UR_block, option);
+      } else {
+        CLOG(ERROR, "URBP") << "Something error in query process";
+      }
+    }
+  }
+
+  //  calcStateRoot(usroot);  // TODO: 추후 구현
+  //  calcStateRoot(csroot);  // TODO: 추후 구현
 }
 
-void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, const block_height_type target_block_height) {
-  // missing link 등에 대한 예외처리를 추가해야 할 필요 있음
-
+void UnresolvedBlockPool::moveHead(const base64_type &target_block_id_b64, const block_height_type target_block_height) {
   if (!target_block_id_b64.empty()) {
     // latest_confirmed의 height가 10이었고, 현재 옮기려는 타겟의 height가 12라면 m_block_pool[1]에 있어야 한다
     int target_height = target_block_height;
@@ -144,18 +182,11 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
     // 현재 head부터 confirmed까지의 경로 구함 -> vector를 resize해서 depth에 맞춰서 집어넣음
     // latest_confirmed의 height가 10이었고, 현재 head의 height가 11이라면 m_block_pool[0]에 있어야 한다
     int current_height = static_cast<int>(m_head_height);
-    int current_bin_idx = static_cast<int>(m_head_height - m_latest_confirmed_height) - 1;
-    int current_queue_idx = -1;
-
-    for (size_t i = 0; i < m_block_pool[current_bin_idx].size(); ++i) {
-      if (m_head_id == m_block_pool[current_bin_idx][i].block.getBlockId()) {
-        current_queue_idx = static_cast<int>(i);
-        break;
-      }
-    }
+    int current_bin_idx = m_head_bin_idx;
+    int current_queue_idx = m_head_queue_idx;
 
     if (target_queue_idx == -1 || current_queue_idx == -1) {
-      CLOG(ERROR, "URBK") << "Something error in move_head() - Cannot find pool element";
+      CLOG(ERROR, "URBP") << "Something error in move_head() - Cannot find pool element";
       return;
     }
 
@@ -195,292 +226,235 @@ void UnresolvedBlockPool::move_head(const base64_type &target_block_id_b64, cons
       back_count++;
 
       if (target_bin_idx < -1 || current_bin_idx < -1) {
-        CLOG(ERROR, "URBK") << "Something error in move_head() - Find common ancestor(1)";
+        CLOG(ERROR, "URBP") << "Something error in move_head() - Find common ancestor(1)";
         return; // 나중에 예외처리 한 번 더 살필 것
       }
     }
 
     if (target_bin_idx == -1 && current_bin_idx == -1) {
       if (target_queue_idx != 0 || current_queue_idx != 0) {
-        CLOG(ERROR, "URBK") << "Something error in move_head() - Find common ancestor(2)";
+        CLOG(ERROR, "URBP") << "Something error in move_head() - Find common ancestor(2)";
         return;
       }
     } else if (m_block_pool[target_bin_idx][target_queue_idx].block.getBlockId() !=
                m_block_pool[current_bin_idx][current_queue_idx].block.getBlockId()) {
-      CLOG(ERROR, "URBK") << "Something error in move_head() - Find common ancestor(2)";
+      CLOG(ERROR, "URBP") << "Something error in move_head() - Find common ancestor(2)";
       return;
     }
 
-    // 만남지점까지 back, 그리고 new_head까지 forward하는 함수를 구현
-    // 이거 구현하려면 ledger 관련, state tree 관련부터 해야함. 그래야 할 수 있음.
+    current_height = static_cast<int>(m_head_height);
+    current_bin_idx = m_head_bin_idx;
+    current_queue_idx = m_head_queue_idx;
 
-    for (auto &deque_aa :)
-      where_to_go[0].first, where_to_go[0].second; // front를 하기 위한 방향 저장된것.
+    for (int i = 0; i < back_count; i++) {
+      current_queue_idx = m_block_pool[current_bin_idx][current_queue_idx].prev_vector_idx;
+      current_bin_idx--;
+      current_height--;
+
+      // TODO: Something in ledger process, state tree process
+    }
+
+    for (auto &deque_front : where_to_go) {
+      if (current_bin_idx + 1 != deque_front.first) {
+        CLOG(ERROR, "URBP") << "Something height error in move_head() - go front";
+        return;
+      }
+      current_bin_idx = deque_front.first;
+      current_queue_idx = deque_front.second;
+      current_height++; // = m_block_pool[current_bin_idx][current_queue_idx].block.getHeight()
+
+      m_block_pool[current_bin_idx][current_queue_idx];
+      // TODO: Something in ledger process, state tree process
+    }
+
+    m_head_id = m_block_pool[m_head_bin_idx][m_head_queue_idx].block.getBlockId();
+    m_head_height = current_height;
+    m_head_bin_idx = current_bin_idx;
+    m_head_queue_idx = current_queue_idx;
+
+    if (m_block_pool[m_head_bin_idx][m_head_queue_idx].block.getHeight() != m_head_height) {
+      CLOG(ERROR, "URBP") << "Something error in move_head() - end part, check height";
+      return;
+    }
+
+    // TODO: missing link 등에 대한 예외처리를 추가해야 할 필요 있음
   }
 }
 
-void UnresolvedBlockPool::getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {
-  resolved_blocks.clear();
-  drop_blocks.clear();
+bool UnresolvedBlockPool::queryUserJoin(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  base58_type uid = json::get<string>(option, "uid").value();
+  string gender = json::get<string>(option, "gender").value();
+  int age = stoi(json::get<string>(option, "age").value());
+  string isc_type = json::get<string>(option, "isc_type").value();
+  string isc_code = json::get<string>(option, "isc_code").value();
+  string location = json::get<string>(option, "location").value();
 
-  auto storage = Storage::getInstance();
-  size_t num_resolved_block = 0;
-  nlohmann::json del_id_array = nlohmann::json::array();
-  nlohmann::json new_id_array = nlohmann::json::array();
+  // TODO: 2.1.2. User Attributes 테이블에 추가하는 코드 작성
+}
 
-  auto resolveBlocksStepByStep = [this](std::vector<UnresolvedBlock> &resolved_blocks, std::vector<string> &drop_blocks) {
-    updateConfirmLevel();
+bool UnresolvedBlockPool::queryUserCert(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  base58_type uid = json::get<string>(option, "uid").value();
+  timestamp_t notbefore = static_cast<uint64_t>(stoll(json::get<string>(option, "notbefore").value()));
+  timestamp_t notafter = static_cast<uint64_t>(stoll(json::get<string>(option, "notafter").value()));
+  string sn = json::get<string>(option, "sn").value();
+  string x509 = json::get<string>(option, "x509").value();
 
-    if (m_block_pool.size() < 2 || m_block_pool[0].empty() || m_block_pool[1].empty())
-      return;
+  // TODO: 2.1.1. User Certificates 테이블에 추가하는 코드 작성
+}
 
-    size_t highest_confirm_level = 0;
-    int resolved_block_idx = -1;
+bool UnresolvedBlockPool::queryIncinerate(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  int amount = stoi(json::get<string>(option, "amount").value());
+  string pid = json::get<string>(option, "pid").value();
 
-    for (size_t i = 0; i < m_block_pool[0].size(); ++i) {
-      if (m_block_pool[0][i].prev_vector_idx == 0 && m_block_pool[0][i].confirm_level > highest_confirm_level) {
-        highest_confirm_level = m_block_pool[0][i].confirm_level;
-        resolved_block_idx = static_cast<int>(i);
-      }
-    }
+  // TODO: m_mem_ledger 사용하여 갱신값 계산
+}
 
-    if (resolved_block_idx < 0 || highest_confirm_level < config::BLOCK_CONFIRM_LEVEL)
-      return; // nothing to do
+bool UnresolvedBlockPool::queryCreate(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  int amount = stoi(json::get<string>(option, "amount").value());
+  string name = json::get<string>(option, "name").value();
+  string type = json::get<string>(option, "type").value();
+  string tag = json::get<string>(option, "tag").value();
 
-    bool is_after = false;
-    for (auto &each_block : m_block_pool[1]) {
-      if (each_block.prev_vector_idx == resolved_block_idx) { // some block links this block
-        is_after = true;
-        break;
-      }
-    }
+  // TODO: m_mem_ledger 사용하여 갱신값 계산
+}
 
-    if (!is_after)
-      return;
+bool UnresolvedBlockPool::queryTransfer(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  base58_type from = json::get<string>(option, "from").value();
+  base58_type to = json::get<string>(option, "to").value();
+  int amount = stoi(json::get<string>(option, "amount").value());
+  string unit = json::get<string>(option, "unit").value();
+  string pid = json::get<string>(option, "pid").value();
+  string tag = json::get<string>(option, "tag").value();
 
-    m_prev_block_id = m_last_block_id;
+  // TODO: m_mem_ledger 사용하여 갱신값 계산
+  // from과 to가 user/contract 따라 처리될 수 있도록 구현 필요
+}
 
-    m_latest_confirmed_id = m_block_pool[0][resolved_block_idx].block.getBlockId();
-    m_latest_confirmed_hash = m_block_pool[0][resolved_block_idx].block.getBlockHash();
-    m_latest_confirmed_height = m_block_pool[0][resolved_block_idx].block.getHeight();
+bool UnresolvedBlockPool::queryUserScope(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  string name = json::get<string>(option, "name").value();
+  string value = json::get<string>(option, "value").value();
+  base58_type uid = json::get<string>(option, "uid").value();
+  string pid = json::get<string>(option, "pid").value();
+  string tag = json::get<string>(option, "tag").value();
 
-    resolved_blocks.emplace_back(m_block_pool[0][resolved_block_idx]);
+  // TODO: m_mem_ledger 사용하여 갱신값 계산
+}
 
-    // clear this height list
+bool UnresolvedBlockPool::queryContractScope(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  string name = json::get<string>(option, "name").value();
+  string value = json::get<string>(option, "value").value();
+  string cid = json::get<string>(option, "cid").value();
+  string pid = json::get<string>(option, "pid").value();
 
-    auto layered_storage = LayeredStorage::getInstance();
+  // TODO: m_mem_ledger 사용하여 갱신값 계산
+}
 
-    if (m_block_pool[0].size() > 1) {
-      for (auto &each_block : m_block_pool[0]) {
-        if (each_block.block.getBlockId() != m_latest_confirmed_id) {
-          drop_blocks.emplace_back(each_block.block.getBlockId());
-        }
-      }
-      CLOG(INFO, "URBK") << "Dropped out " << m_block_pool[0].size() - 1 << " unresolved block(s)";
-    }
+bool UnresolvedBlockPool::queryRunQuery(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  string type = json::get<string>(option, "type").value();
+  nlohmann::json query = option["query"];
+  timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
 
-    m_block_pool.pop_front();
+  // TODO: Scheduler에게 지연 처리 요청 전송
+}
 
-    if (m_block_pool.empty())
-      return;
+bool UnresolvedBlockPool::queryRunContract(UnresolvedBlock &UR_block, nlohmann::json &option) {
+  string cid = json::get<string>(option, "cid").value();
+  string input = json::get<string>(option, "input").value();
+  timestamp_t after = static_cast<uint64_t>(stoll(json::get<string>(option, "after").value()));
 
-    for (auto &each_block : m_block_pool[0]) {
-      if (each_block.block.getPrevBlockId() == m_last_block_id && each_block.block.getPrevHash() == m_last_hash) {
-        each_block.prev_vector_idx = 0;
-      } else {
-        // this block is unlinkable => to be deleted
-        each_block.prev_vector_idx = -1;
-      }
-    }
-  };
+  // TODO: authority.user를 현재 user로 대체하여 Scheduler에게 요청 전송
+}
 
-  std::lock_guard<std::recursive_mutex> guard(m_push_mutex);
-
-  do {
-    num_resolved_block = resolved_blocks.size();
-    resolveBlocksStepByStep(resolved_blocks, drop_blocks);
-  } while (num_resolved_block < resolved_blocks.size());
-
-  json id_array = readBackupIds();
-
-  if (id_array.empty() || !id_array.is_array())
-    return;
-
-  for (auto &each_block_id : drop_blocks) {
-    del_id_array.push_back(each_block_id);
+bool UnresolvedBlockPool::resolveBlock(Block &block) {
+  if (!lateStage(block)) {
+    return false;
   }
 
-  for (auto &each_id : id_array) {
-    bool is_resolved = false;
-    string block_id_b64 = json::get<string>(each_id).value();
-    if (block_id_b64.empty())
-      continue;
-
-    for (auto &each_block : resolved_blocks) {
-      if (block_id_b64 == each_block.block.getBlockIdB64()) {
-        is_resolved = true;
-        break;
-      }
+  if (block.getHeight() - m_latest_confirmed_height > config::BLOCK_CONFIRM_LEVEL) {
+    if (!resolveBlocksStepByStep(block)) {
+      return false;
     }
+  }
 
-    if (is_resolved) {
-      del_id_array.push_back(block_id_b64);
+  return true;
+}
+
+bool UnresolvedBlockPool::resolveBlocksStepByStep(Block &block) {
+  updateTotalNumSSig();
+
+  if (m_block_pool.size() < 2 || m_block_pool[0].empty() || m_block_pool[1].empty())
+    return false;
+
+  size_t highest_total_ssig = 0;
+  int resolved_block_idx = -1;
+
+  for (size_t i = 0; i < m_block_pool[0].size(); ++i) {
+    if (m_block_pool[0][i].prev_vector_idx == 0 && m_block_pool[0][i].ssig_sum > highest_total_ssig) {
+      highest_total_ssig = m_block_pool[0][i].ssig_sum;
+      resolved_block_idx = static_cast<int>(i);
+    }
+  }
+
+  if (resolved_block_idx < 0 || highest_total_ssig < config::MIN_SIGNATURE_COLLECT_SIZE)
+    return false;
+
+  bool is_after = false;
+  for (auto &each_block : m_block_pool[1]) {
+    if (each_block.prev_vector_idx == resolved_block_idx) { // some block links this block
+      is_after = true;
+      break;
+    }
+  }
+
+  if (!is_after)
+    return false;
+
+  m_latest_confirmed_prev_id = m_latest_confirmed_id;
+
+  m_latest_confirmed_id = m_block_pool[0][resolved_block_idx].block.getBlockId();
+  m_latest_confirmed_hash = m_block_pool[0][resolved_block_idx].block.getBlockHash();
+  m_latest_confirmed_height = m_block_pool[0][resolved_block_idx].block.getHeight();
+
+  m_block_pool.pop_front();
+
+  if (m_block_pool.empty())
+    return false;
+
+  for (auto &each_block : m_block_pool[0]) {
+    if (each_block.block.getPrevBlockId() == m_latest_confirmed_id) {
+      each_block.prev_vector_idx = 0;
     } else {
-      new_id_array.push_back(block_id_b64);
+      // this block is unlinkable => to be deleted
+      each_block.prev_vector_idx = -1;
     }
   }
-
-  storage->saveBackup(UNRESOLVED_BLOCK_IDS_KEY, TypeConverter::bytesToString(json::to_cbor(new_id_array)));
-
-  for (auto &each_id : del_id_array) {
-    string block_id_b64 = json::get<string>(each_id).value();
-    storage->delBackup(block_id_b64);
-  }
-
-  storage->flushBackup();
-
-  m_push_mutex.unlock();
 }
 
-void UnresolvedBlockPool::updateConfirmLevel() {
+void UnresolvedBlockPool::updateTotalNumSSig() {
   if (m_block_pool.empty())
     return;
 
   for (auto &each_level : m_block_pool) {
     for (auto &each_block : each_level) {
-      each_block.confirm_level = each_block.block.getNumSSigs();
+      each_block.ssig_sum = each_block.block.getNumSigners();
     }
   }
 
   for (int i = (int)m_block_pool.size() - 1; i > 0; --i) {
     for (auto &each_block : m_block_pool[i]) { // for vector
       if (each_block.prev_vector_idx >= 0 && m_block_pool[i - 1].size() > each_block.prev_vector_idx) {
-        m_block_pool[i - 1][each_block.prev_vector_idx].confirm_level += each_block.confirm_level;
+        m_block_pool[i - 1][each_block.prev_vector_idx].ssig_sum += each_block.ssig_sum;
       }
     }
   }
-}
-
-BlockPosPool UnresolvedBlockPool::getLongestBlockPos() {
-  //  if (m_has_cache_pos)
-  //    return m_cache_possible_pos;
-
-  // search prev_level
-  std::function<void(size_t, size_t, BlockPosPool &)> recSearchLongestLinkPos;
-  recSearchLongestLinkPos = [this, &recSearchLongestLinkPos](size_t bin_idx, size_t prev_vector_idx, BlockPosPool &longest_pos) {
-    if (m_block_pool.size() < bin_idx + 1)
-      return;
-
-    // if this level is empty, it will automatically stop to search
-    for (size_t i = 0; i < m_block_pool[bin_idx].size(); ++i) {
-      auto &each_block = m_block_pool[bin_idx][i];
-      if (each_block.prev_vector_idx == prev_vector_idx) {
-        if (each_block.block.getHeight() > longest_pos.height) { // relaxation
-          longest_pos.height = each_block.block.getHeight();
-          longest_pos.vector_idx = i;
-        }
-
-        recSearchLongestLinkPos(bin_idx + 1, i, longest_pos);
-      }
-    }
-  };
-
-  BlockPosPool longest_pos(0, 0);
-
-  if (!m_block_pool.empty()) {
-    for (size_t i = 0; i < m_block_pool[0].size(); ++i) {
-      if (m_block_pool[0][i].prev_vector_idx == 0) {
-
-        if (m_block_pool[0][i].block.getHeight() > longest_pos.height) { // relaxation
-          longest_pos.height = m_block_pool[0][i].block.getHeight();
-          longest_pos.vector_idx = i;
-        }
-
-        recSearchLongestLinkPos(1, i, longest_pos); // recursive call
-      }
-    }
-  }
-
-  //  m_cache_possible_pos = longest_pos;
-  //  m_has_cache_pos = true;
-
-  return longest_pos;
-}
-
-nth_link_type UnresolvedBlockPool::getMostPossibleLink() {
-
-  //  if (m_has_cache_link)
-  //    return m_cache_possible_link;
-
-  nth_link_type ret_link;
-
-  std::lock_guard<std::recursive_mutex> guard(m_push_mutex);
-
-  // when resolved situation, the blow are the same with storage
-  // unless, they are faster than storage
-
-  ret_link.height = m_latest_confirmed_height;
-  ret_link.id = m_latest_confirmed_id;
-  ret_link.prev_id = m_latest_confirmed_prev_id;
-  ret_link.time = m_latest_confirmed_time;
-
-  if (m_block_pool.empty()) {
-    //    m_cache_possible_link = ret_link;
-    //    m_has_cache_link = true;
-    return ret_link;
-  }
-
-  BlockPosPool longest_pos = getLongestBlockPos();
-
-  if (ret_link.height < longest_pos.height) {
-
-    // must be larger or equal to 0
-    int deque_idx = static_cast<int>(longest_pos.height - m_last_height) - 1;
-
-    if (deque_idx >= 0) {
-      auto &t_block = m_block_pool[deque_idx][longest_pos.vector_idx];
-      ret_link.height = t_block.block.getHeight();
-      ret_link.id = t_block.block.getBlockId();
-      ret_link.hash = t_block.block.getHash();
-      ret_link.prev_id = t_block.block.getPrevBlockId();
-      ret_link.time = t_block.block.getBlockTime();
-    }
-  }
-
-  m_cache_possible_link = ret_link;
-  m_has_cache_link = true;
-
-  return ret_link;
 }
 
 void UnresolvedBlockPool::setupStateTree() // RDB에 있는 모든 노드를 불러올 수 있어야 하므로 관련 연동 필요
-{
-  vector<pair<int, vector<string>>> all = m_server.selectAll();
-  for (auto item : all) {
-    //                printf("%5d\t", item.first);
-    //                for(auto column: item.second)
-    //                    printf("%15s\t", column.c_str());
-    //                printf("\n");
-
-    test_data data;
-    //  data.record_id = item.first;
-    data.user_id = item.second[USER_ID];
-    data.var_type = item.second[VAR_TYPE];
-    data.var_name = item.second[VAR_NAME];
-    data.var_value = item.second[VAR_VALUE];
-    uint path = (uint)stoul(item.second[PATH]);
-    m_user_state_tree.addNode(path, data);
-  }
-
-  m_user_state_tree.printTreePostOrder();
-}
+{}
 
 // 추후 필요시 구현
-bool UnresolvedBlockPool::hasUnresolvedBlocks() {}
 void UnresolvedBlockPool::invalidateCaches() {}
-bool UnresolvedBlockPool::getBlock(block_height_type t_height, const hash_t &t_prev_hash, const hash_t &t_hash, Block &ret_block) {}
-bool UnresolvedBlockPool::getBlock(block_height_type t_height, Block &ret_block) {}
-json UnresolvedBlockPool::readBackupIds() {}
-nth_link_type UnresolvedBlockPool::getUnresolvedLowestLink() {}
+void backupPool() {}
+nlohmann::json UnresolvedBlockPool::readBackupIds() {}
 
 } // namespace gruut

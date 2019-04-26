@@ -17,6 +17,8 @@ namespace gruut {
 struct UnresolvedBlock {
   Block block;
   int prev_vector_idx{-1};
+  size_t ssig_sum{0};
+  MemLedger m_mem_ledger;
 
   UnresolvedBlock() = default;
   UnresolvedBlock(Block &block_, int prev_queue_idx_) : block(block_), prev_vector_idx(prev_queue_idx_) {}
@@ -30,7 +32,7 @@ struct BlockPosPool {
   BlockPosPool(size_t height_, size_t vector_idx_) : height(height_), vector_idx(vector_idx_) {}
 };
 
-class UnresolvedBlockPool : public TemplateSingleton<UnresolvedBlockPool> {
+class UnresolvedBlockPool {
 private:
   std::deque<std::vector<UnresolvedBlock>> m_block_pool; // deque[n] is tree's depth n; vector's blocks are same depth(block height)
   std::recursive_mutex m_push_mutex;
@@ -46,8 +48,8 @@ private:
 
   base64_type m_head_id;
   std::atomic<block_height_type> m_head_height;
-
-  StorageManager *m_storage_manager;
+  int m_head_bin_idx;
+  int m_head_queue_idx;
 
 public:
   UnresolvedBlockPool();
@@ -70,28 +72,31 @@ public:
   bool prepareBins(block_height_type t_height);
   unblk_push_result_type push(Block &block, bool is_restore = false);
 
-  void getResolvedBlocks(std::vector<UnresolvedBlock> &resolved_blocks, std::vector<std::string> &drop_blocks);
-
-  nth_link_type getMostPossibleLink();
+  bool resolveBlock(Block &block);
 
   void restorePool();
   void setupStateTree();
 
-  void process_tx_result(Block &new_block, nlohmann::json &result);
-  void move_head(const std::string &block_id_b64, const block_height_type target_block_height);
+  void processTxResult(UnresolvedBlock &new_UR_block, nlohmann::json &result);
+  void moveHead(const std::string &block_id_b64, const block_height_type target_block_height);
+  bool queryUserJoin(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryUserCert(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryIncinerate(UnresolvedBlock &UR_lock, nlohmann::json &option);
+  bool queryCreate(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryTransfer(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryUserScope(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryContractScope(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryRunQuery(UnresolvedBlock &UR_block, nlohmann::json &option);
+  bool queryRunContract(UnresolvedBlock &UR_block, nlohmann::json &option);
 
-  bool hasUnresolvedBlocks();
   void invalidateCaches();
-  bool getBlock(block_height_type t_height, const hash_t &t_prev_hash, const hash_t &t_hash, Block &ret_block);
-  bool getBlock(block_height_type t_height, Block &ret_block);
-  nth_link_type getUnresolvedLowestLink();
 
 private:
-  nlohmann::json readBackupIds();
-  void backupPool();
+  bool resolveBlocksStepByStep(Block &block);
+  void updateTotalNumSSig();
 
-  BlockPosPool getLongestBlockPos();
-  void updateConfirmLevel();
+  void backupPool();
+  nlohmann::json readBackupIds();
 };
 
 } // namespace gruut
