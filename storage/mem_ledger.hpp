@@ -19,20 +19,20 @@ struct LedgerRecord {
   std::string var_owner; // user scope의 경우 uid, contract scope의 경우 cid
   timestamp_t up_time;
   block_height_type up_block; // user scope only
-  std::string condition;      // user scope only
+  std::string tag;      // user scope only
   std::string var_info;       // contract scope only
   hash_t pid;
 
   LedgerRecord(std::string var_name_, std::string var_val_, std::string var_type_, std::string var_owner_, timestamp_t up_time_,
-               block_height_type up_block_, std::string condition_)
+               block_height_type up_block_, std::string tag_)
       : var_name(var_name_), var_val(var_val_), var_type(var_type_), var_owner(var_owner_), up_time(up_time_), up_block(up_block_),
-        condition(condition_) {
+        tag(tag_) {
     //    which_scope = LedgerType::USERSCOPE;
     BytesBuilder bytes_builder;
     bytes_builder.append(var_name);
     bytes_builder.append(var_type);
     bytes_builder.appendBase<58>(var_owner);
-    bytes_builder.append(condition);
+    bytes_builder.append(tag);
     pid = Sha256::hash(bytes_builder.getBytes());
   }
 
@@ -60,12 +60,12 @@ public:
   }
 
   bool addUserScope(std::string var_name, std::string var_val, std::string var_type, std::string var_owner, timestamp_t up_time,
-                    block_height_type up_block, std::string condition) {
+                    block_height_type up_block, std::string tag) {
     std::lock_guard<std::mutex> lock(m_active_mutex);
 
     // TODO: 현 위치에서 RDB까지 체크하면서 값의 갱신 결과 계산
 
-    m_ledger.emplace_back(var_name, var_val, var_type, var_owner, up_time, up_block, condition);
+    m_ledger.emplace_back(var_name, var_val, var_type, var_owner, up_time, up_block, tag);
 
     return true;
   }

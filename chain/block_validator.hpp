@@ -37,27 +37,22 @@ bool verifyTransaction(Transaction &tx, string world, string chain) {
     tx_id_builder.appendBase<58>(tx.getReceiverId());
   tx_id_builder.appendDec(tx.getFee());
   tx_id_builder.append(tx.getContractId());
+  tx_id_builder.append(TypeConverter::bytesToString(tx.getTxInputCbor()));
 
   hash_t tx_id = Sha256::hash(tx_id_builder.getBytes());
   if (tx.getTxid() != TypeConverter::encodeBase<58>(tx_id)) {
     return false;
   }
 
-  BytesBuilder tx_plain_builder;
-  tx_plain_builder.appendBase<58>(tx.getTxid());
-  tx_plain_builder.append(TypeConverter::bytesToString(tx.getTxInputCbor()));
-
-  bytes tx_plain = tx_plain_builder.getBytes();
-
   vector<Endorser> endorsers = tx.getEndorsers();
   for (auto &each_end : endorsers) {
-    if (each_end.endorser_signature != SignByEndorser(tx_plain)) { // TODO: SignByEndorser가 확정되면 변경해야 함
+    if (each_end.endorser_signature != SignByEndorser(tx_id)) { // TODO: SignByEndorser가 확정되면 변경해야 함
       return false;
     }
   }
 
   BytesBuilder user_sig_builder;
-  user_sig_builder.append(TypeConverter::bytesToString(tx_plain));
+  user_sig_builder.append(TypeConverter::bytesToString(tx_id));
   for (auto &each_end : endorsers) {
     user_sig_builder.appendBase<58>(each_end.endorser_id);
     user_sig_builder.append(each_end.endorser_pk);

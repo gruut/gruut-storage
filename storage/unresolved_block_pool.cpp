@@ -101,8 +101,6 @@ unblk_push_result_type UnresolvedBlockPool::push(Block &block, bool is_restore) 
 
   m_push_mutex.unlock();
 
-  resolveBlock(block);
-
   return ret_val;
 }
 
@@ -315,7 +313,7 @@ bool UnresolvedBlockPool::queryCreate(UnresolvedBlock &UR_block, nlohmann::json 
   int amount = stoi(json::get<string>(option, "amount").value());
   string name = json::get<string>(option, "name").value();
   string type = json::get<string>(option, "type").value();
-  string condition = json::get<string>(option, "condition").value();
+  string tag = json::get<string>(option, "tag").value();
 
   // TODO: m_mem_ledger 사용하여 갱신값 계산
 }
@@ -326,7 +324,7 @@ bool UnresolvedBlockPool::queryTransfer(UnresolvedBlock &UR_block, nlohmann::jso
   int amount = stoi(json::get<string>(option, "amount").value());
   string unit = json::get<string>(option, "unit").value();
   string pid = json::get<string>(option, "pid").value();
-  string condition = json::get<string>(option, "condition").value();
+  string tag = json::get<string>(option, "tag").value();
 
   // TODO: m_mem_ledger 사용하여 갱신값 계산
   // from과 to가 user/contract 따라 처리될 수 있도록 구현 필요
@@ -337,7 +335,7 @@ bool UnresolvedBlockPool::queryUserScope(UnresolvedBlock &UR_block, nlohmann::js
   string value = json::get<string>(option, "value").value();
   base58_type uid = json::get<string>(option, "uid").value();
   string pid = json::get<string>(option, "pid").value();
-  string condition = json::get<string>(option, "condition").value();
+  string tag = json::get<string>(option, "tag").value();
 
   // TODO: m_mem_ledger 사용하여 갱신값 계산
 }

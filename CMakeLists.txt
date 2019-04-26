@@ -49,11 +49,19 @@ ENDIF (Boost_FOUND)
 set(LIB_PREFIX "/usr/local/lib")
 set(LZ4_LIBS "${LIB_PREFIX}/liblz4.a")
 set(BOTAN_LIBS "${LIB_PREFIX}/libbotan-2.a")
-target_include_directories(workspace_temp PRIVATE include/ /usr/local/include)
+target_include_directories(workspace_temp PRIVATE include/ /usr/local/include
+        /usr/local/include/soci
+        /usr/local/include/mysql
+        )
 target_link_libraries(workspace_temp
         PRIVATE
         ${Boost_LIBRARIES}
         leveldb
         ${LZ4_LIBS}
         ${BOTAN_LIBS}
+
+        /usr/local/lib64/libsoci_core.so
+        /usr/local/lib64/libsoci_empty.so
+        /usr/local/lib64/libsoci_mysql.so
+        /usr/local/lib64/libsoci_odbc.so
         )
