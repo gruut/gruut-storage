@@ -1,4 +1,4 @@
-# Gruut storage
+# Gruut storage (This is old version. New version is included public project)
 
 ### Prerequisite
   - CMake (**3.12**)
